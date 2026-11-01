@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+/* ─────────────────────────────────────────────────────────────
+   CHILLOUT — Design tokens
+   Paleta: carbón + hueso + piedra + un único acento cobre.
+   ───────────────────────────────────────────────────────────── */
+
+@theme {
+  --font-display: var(--font-bodoni), ui-serif, Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Base neutra */
+  --color-ink: #0a0a0a;
+  --color-ink-800: #121212;
+  --color-ink-700: #1a1a1a;
+  --color-ink-600: #232323;
+  --color-ink-500: #2e2e2e;
+
+  --color-paper: #f7f4ef;
+  --color-paper-dim: #ede8df;
+  --color-paper-muted: #ddd6ca;
+
+  --color-stone: #8a8378;
+  --color-stone-light: #b8b1a5;
+  --color-stone-dark: #5c574f;
+
+  /* Acento único */
+  --color-copper: #b4593a;
+  --color-copper-bright: #d06a45;
+  --color-copper-deep: #8d4229;
+
+  /* Semánticos */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-surface: #ffffff;
+  --color-border: color-mix(in oklab, var(--color-ink) 12%, transparent);
+
+  /* Escala de movimiento */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
+  --duration-fast: 180ms;
+  --duration-base: 320ms;
+  --duration-slow: 720ms;
+
+  /* Radios */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-copper);
+    color: var(--color-paper);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-copper);
+    outline-offset: 3px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* Marca: wordmark con marco, tal como el logotipo CHILLOUT */
+  .brand-frame {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid currentColor;
+    padding: 0.15em 0.4em 0.2em;
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  /* Haz de luz que recorre bordes/ botones al interactuar (módulo 5).
+     Puro CSS, sin JS, GPU-friendly. */
+  .sheen {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, #fff 55%, transparent) 45%,
+      color-mix(in oklab, #fff 85%, transparent) 50%,
+      color-mix(in oklab, #fff 55%, transparent) 55%,
+      transparent 80%
+    );
+    translate: -120% 0;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .sheen:hover::after,
+  .sheen:focus-visible::after {
+    opacity: 1;
+    transition:
+      translate 900ms var(--ease-out-expo),
+      opacity 200ms linear;
+    translate: 120% 0;
+  }
+
+  .hairline {
+    height: 1px;
+    background: color-mix(in oklab, var(--color-ink) 14%, transparent);
+  }
+}
+
+@layer utilities {
+  /* Revelado progresivo del catálogo (módulo 3) */
+  @keyframes reveal-up {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateY(0);
+    }
+  }
+
+  .reveal {
+    animation: reveal-up var(--duration-slow) var(--ease-out-expo) both;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .tracking-brand {
+    letter-spacing: 0.3em;
+  }
+}
+
+/* Accesibilidad: respetar preferencia de movimiento reducido (WCAG 2.2 AA) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .sheen::after {
+    display: none;
+  }
+}

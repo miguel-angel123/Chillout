@@ -1,0 +1,95 @@
+import Image from 'next/image'
+import Link from 'next/link'
+import { Box } from 'lucide-react'
+import type { ProductSummaryVM } from '@/lib/catalog'
+import { cn } from '@/lib/utils'
+
+export function ProductCard({
+  product,
+  priority = false,
+  className,
+}: {
+  product: ProductSummaryVM
+  priority?: boolean
+  className?: string
+}) {
+  const primary = product.colors[0]
+  const lowStock = primary?.lowStockSize
+
+  return (
+    <article className={cn('group relative', className)}>
+      <Link href={`/producto/${product.slug}`} className="block focus-visible:outline-offset-4">
+        <div className="relative aspect-[3/4] overflow-hidden bg-paper-dim">
+          {primary ? (
+            <>
+              <Image
+                src={primary.image.url}
+                alt={primary.image.alt}
+                fill
+                priority={priority}
+                sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
+                className={cn(
+                  'object-cover transition-all duration-700 ease-[var(--ease-out-expo)]',
+                  primary.hoverImage && 'group-hover:scale-[1.03] group-hover:opacity-0',
+                )}
+              />
+              {primary.hoverImage ? (
+                <Image
+                  src={primary.hoverImage.url}
+                  alt={primary.hoverImage.alt}
+                  fill
+                  sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
+                  className="object-cover opacity-0 transition-all duration-700 ease-[var(--ease-out-expo)] group-hover:scale-[1.03] group-hover:opacity-100"
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {/* Disponibilidad crítica (módulo 15) */}
+          {lowStock ? (
+            <span className="absolute top-3 left-3 bg-paper/95 px-2 py-1 text-[9px] tracking-[0.16em] text-ink uppercase">
+              Quedan {lowStock.remaining} · {lowStock.size}
+            </span>
+          ) : null}
+
+          {/* Afordancia 3D */}
+          <span className="absolute right-3 bottom-3 inline-flex items-center gap-1.5 rounded-full bg-ink/85 px-3 py-1.5 text-[9px] tracking-[0.16em] text-paper uppercase opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100">
+            <Box className="size-3" strokeWidth={1.8} />
+            Ver en 3D
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate font-sans text-[13px] font-medium tracking-wide text-ink">
+              {product.name}
+            </h3>
+            <p className="mt-0.5 truncate text-[11px] tracking-wide text-stone-dark">
+              {product.subtitle}
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-[13px] text-ink tabular-nums">{product.priceLabel}</p>
+            {product.compareAtLabel ? (
+              <p className="text-[11px] text-stone line-through tabular-nums">{product.compareAtLabel}</p>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Muestras de color */}
+        <ul className="mt-3 flex items-center gap-1.5" aria-label="Colores disponibles">
+          {product.colors.map((color) => (
+            <li key={color.slug}>
+              <span
+                title={color.name}
+                className="block size-3 ring-1 ring-ink/15 ring-offset-1 ring-offset-paper"
+                style={{ backgroundColor: `#${color.hex}` }}
+              />
+              <span className="sr-only">{color.name}</span>
+            </li>
+          ))}
+        </ul>
+      </Link>
+    </article>
+  )
+}

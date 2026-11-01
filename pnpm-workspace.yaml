@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────
+# pnpm 11 lee su configuración de este archivo, no de .npmrc.
+# ─────────────────────────────────────────────────────────────
+
+# Árbol plano estilo npm. En Windows el árbol de symlinks de pnpm falla con
+# "[symlinkAllModules] Maximum call stack size exceeded" y deja dependencias
+# transitivas irresolubles (esbuild, detect-libc, @swc/helpers).
+nodeLinker: hoisted
+
+# pnpm 11 bloquea los scripts de instalación por seguridad. Estas son las
+# únicas dependencias que necesitan binarios nativos:
+#   · esbuild → motor de tsx, vitest y drizzle-kit
+#   · sharp   → pipeline de imágenes
+allowBuilds:
+  esbuild: true
+  sharp: true
+
+minimumReleaseAgeExclude:
+  - '@better-auth/core@1.7.15'
+  - '@better-auth/drizzle-adapter@1.7.15'
+  - '@better-auth/kysely-adapter@1.7.15'
+  - '@better-auth/memory-adapter@1.7.15'
+  - '@better-auth/mongo-adapter@1.7.15'
+  - '@better-auth/prisma-adapter@1.7.15'
+  - '@better-auth/telemetry@1.7.15'
+  - better-auth@1.7.15
