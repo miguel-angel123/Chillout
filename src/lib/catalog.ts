@@ -10,6 +10,8 @@ export type ProductColorVM = {
   hex: string
   image: { url: string; alt: string }
   hoverImage?: { url: string; alt: string }
+  /** Vistas adicionales (trasera, lateral) para la galería de la ficha. */
+  extraImages: { url: string; alt: string }[]
   sizesAvailable: string[]
   totalStock: number
   lowStockSize?: { size: string; remaining: number }
@@ -60,6 +62,7 @@ function summaryFromSeed(product: (typeof SEED_PRODUCTS)[number]): ProductSummar
       hex: '999999',
       image: primary ? { url: primary.url, alt: primary.alt } : PLACEHOLDER,
       hoverImage: secondary ? { url: secondary.url, alt: secondary.alt } : undefined,
+      extraImages: variant.images.slice(2).map((img) => ({ url: img.url, alt: img.alt })),
       sizesAvailable: inStock.map(([size]) => size.toUpperCase()),
       totalStock: entries.reduce((sum, [, n]) => sum + n, 0),
       lowStockSize: low ? { size: low[0].toUpperCase(), remaining: low[1] } : undefined,
@@ -162,6 +165,7 @@ async function loadFromDatabase(): Promise<LoadedCatalog | null> {
           hex: colorInfo?.hex ?? '999999',
           image: primary ? { url: primary.url, alt: primary.alt } : PLACEHOLDER,
           hoverImage: secondary ? { url: secondary.url, alt: secondary.alt } : undefined,
+          extraImages: candidates.slice(2).map((m) => ({ url: m.url, alt: m.alt })),
           sizesAvailable: available.map((v) => sizeById.get(v.sizeId)?.label ?? '?'),
           totalStock: colorVariants.reduce((sum, v) => sum + v.stock, 0),
           lowStockSize: low

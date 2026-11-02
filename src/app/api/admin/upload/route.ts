@@ -76,16 +76,28 @@ export async function POST(request: Request) {
     slug = `${base}-${attempt}`
   }
 
+  const backFile = form.get('fileBack')
+  const sideFile = form.get('fileSide')
+
+  // Las tres vistas son obligatorias: sin trasera y lateral el modelo 3D es una
+  // inferencia simétrica, no la prenda real.
+  if (!(backFile instanceof File) || !(sideFile instanceof File)) {
+    const missing = [
+      !(backFile instanceof File) ? 'la vista trasera' : null,
+      !(sideFile instanceof File) ? 'la vista lateral' : null,
+    ].filter(Boolean)
+    return NextResponse.json(
+      { error: `Falta ${missing.join(' y ')}. Se requieren las tres vistas: frontal, trasera y lateral.` },
+      { status: 400 },
+    )
+  }
+
   // ── Pipeline: prenda aislada + profundidad por vista ──────
   let result
   try {
     const front = Buffer.from(await file.arrayBuffer())
-
-    const backFile = form.get('fileBack')
-    const sideFile = form.get('fileSide')
-
-    const back = backFile instanceof File ? Buffer.from(await backFile.arrayBuffer()) : undefined
-    const side = sideFile instanceof File ? Buffer.from(await sideFile.arrayBuffer()) : undefined
+    const back = Buffer.from(await backFile.arrayBuffer())
+    const side = Buffer.from(await sideFile.arrayBuffer())
 
     result = await runPhotoPipeline({ front, back, side }, { slug })
   } catch (error) {
@@ -156,6 +168,19 @@ export async function POST(request: Request) {
         url: result.backPhotoUrl,
         alt: `${name}, vista trasera`,
         sortOrder: 1,
+        isEditorial: false,
+      })
+    }
+
+    // Vista lateral: se guarda en la galería y alimenta el perfil del modelo.
+    if (result.sideCutoutUrl) {
+      await db.insert(schema.productMedia).values({
+        productId: product.id,
+        colorId: color.id,
+        kind: 'detail',
+        url: `/api/media/products/${slug}-side.jpg`,
+        alt: `${name}, vista lateral`,
+        sortOrder: 2,
         isEditorial: false,
       })
     }

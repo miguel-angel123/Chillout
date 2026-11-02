@@ -176,11 +176,11 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
           fondo, aísla la prenda y estima el volumen sin intervención.
         </p>
 
-        {/* Vistas adicionales: sin la trasera el 3D es simétrico */}
+        {/* Las tres vistas son obligatorias: sin trasera y lateral el 3D es inventado */}
         <div className="mt-4 grid grid-cols-2 gap-3">
           <ExtraSlot
             label="Vista trasera"
-            hint="Recomendada"
+            hint="Obligatoria"
             file={backFile}
             inputRef={backRef}
             onPick={(f) => setBackFile(f)}
@@ -188,19 +188,35 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
           />
           <ExtraSlot
             label="Vista lateral"
-            hint="Opcional"
+            hint="Obligatoria"
             file={sideFile}
             inputRef={sideRef}
             onPick={(f) => setSideFile(f)}
             onClear={() => setSideFile(null)}
           />
         </div>
-        {!backFile ? (
-          <p className="mt-3 border border-copper/30 bg-copper/5 px-3 py-2 text-[10px] leading-relaxed text-copper-deep">
-            Sin foto trasera el revés se refleja de la delantera: sirve para tejidos lisos, pero
-            duplica cremalleras o estampados que estén solo al frente.
-          </p>
-        ) : null}
+
+        {(() => {
+          const missing = [
+            !file ? 'frontal' : null,
+            !backFile ? 'trasera' : null,
+            !sideFile ? 'lateral' : null,
+          ].filter(Boolean)
+          if (missing.length === 0) {
+            return (
+              <p className="mt-3 inline-flex items-center gap-1.5 text-[10px] tracking-[0.14em] text-ink uppercase">
+                <CheckCircle2 className="size-3.5 text-copper" strokeWidth={2} />
+                Tres vistas completas
+              </p>
+            )
+          }
+          return (
+            <p className="mt-3 border border-ink/15 bg-paper-dim px-3 py-2 text-[10px] leading-relaxed text-stone-dark">
+              Faltan las vistas: {missing.join(', ')}. Se requieren las tres (frontal, trasera y
+              lateral) para construir el 3D de la prenda real.
+            </p>
+          )
+        })()}
       </div>
 
       {/* ── Formulario ─────────────────────────────────────── */}
@@ -340,10 +356,14 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
 
         <button
           type="submit"
-          disabled={!file || busy || name.length < 2}
+          disabled={!file || !backFile || !sideFile || busy || name.length < 2}
           className="mt-7 w-full bg-ink py-4 text-[11px] tracking-[0.24em] text-paper uppercase transition-colors hover:bg-copper disabled:cursor-not-allowed disabled:opacity-30"
         >
-          {busy ? 'Procesando…' : 'Generar modelo 3D y publicar'}
+          {busy
+            ? 'Procesando…'
+            : !file || !backFile || !sideFile
+              ? 'Faltan vistas por subir'
+              : 'Generar modelo 3D y publicar'}
         </button>
       </form>
     </div>

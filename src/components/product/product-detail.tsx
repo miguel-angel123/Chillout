@@ -38,6 +38,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
     if (!color) return []
     const list = [color.image]
     if (color.hoverImage) list.push(color.hoverImage)
+    for (const extra of color.extraImages) list.push(extra)
     return list
   }, [color])
 
