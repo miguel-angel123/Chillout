@@ -1,15 +1,18 @@
 import type { Metadata } from 'next'
-import { ComingSoon } from '@/components/site/coming-soon'
+import { Runway } from '@/components/runway/runway'
+import { getAllProducts } from '@/lib/catalog'
 
-export const metadata: Metadata = { title: 'Pasarela digital' }
+export const metadata: Metadata = {
+  title: 'Pasarela digital',
+  description:
+    'La colección CHILLOUT desfila de una prenda en una: nombre, precio y navegación Anterior / Siguiente con contador de posición.',
+}
 
-export default function Page() {
-  return (
-    <ComingSoon
-      eyebrow="Pasarela digital"
-      title="Una prenda a la vez, a pantalla completa"
-      description="La colección desfila de una en una: nombre, precio, descripción breve y controles Anterior / Siguiente con contador de posición. La imagen actual se desliza hacia un lado mientras la siguiente entra desde el extremo opuesto."
-      phase="Módulo 4 · Fase 2"
-    />
-  )
+// La colección cambia en caliente desde el 3D Studio: no puede congelarse.
+export const dynamic = 'force-dynamic'
+
+export default async function RunwayPage() {
+  const products = await getAllProducts()
+
+  return <Runway products={products} />
 }
