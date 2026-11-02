@@ -163,7 +163,9 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
           </div>
           {color?.lowStockSize ? (
             <p className="mt-3 text-[11px] text-copper">
-              Solo quedan {color.lowStockSize.remaining} unidades en talla {color.lowStockSize.size}
+              {color.lowStockSize.remaining === 1
+                ? `Solo queda 1 unidad en talla ${color.lowStockSize.size}`
+                : `Solo quedan ${color.lowStockSize.remaining} unidades en talla ${color.lowStockSize.size}`}
             </p>
           ) : null}
         </fieldset>
