@@ -136,7 +136,7 @@ function GarmentModel({
       <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
       <ambientLight intensity={0.85} />
 
-      <Hanger />
+      {/* El gancho viene en la propia fotografía: no se modela aparte. */}
 
       {/* Frente: la foto exacta sobre la superficie con bulto */}
       <mesh geometry={built.volume.front}>

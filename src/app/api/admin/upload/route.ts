@@ -77,29 +77,23 @@ export async function POST(request: Request) {
   }
 
   const backFile = form.get('fileBack')
-  const sideFile = form.get('fileSide')
 
-  // Las tres vistas son obligatorias: sin trasera y lateral el modelo 3D es una
-  // inferencia simétrica, no la prenda real.
-  if (!(backFile instanceof File) || !(sideFile instanceof File)) {
-    const missing = [
-      !(backFile instanceof File) ? 'la vista trasera' : null,
-      !(sideFile instanceof File) ? 'la vista lateral' : null,
-    ].filter(Boolean)
+  // Frontal y trasera son obligatorias: el revés del 3D se texturiza con la
+  // fotografía real, no con una simetría inventada.
+  if (!(backFile instanceof File)) {
     return NextResponse.json(
-      { error: `Falta ${missing.join(' y ')}. Se requieren las tres vistas: frontal, trasera y lateral.` },
+      { error: 'Falta la vista trasera. Se requieren la frontal y la trasera.' },
       { status: 400 },
     )
   }
 
-  // ── Pipeline: prenda aislada + profundidad por vista ──────
+  // ── Pipeline: recorte de fondo + profundidad ──────────────
   let result
   try {
     const front = Buffer.from(await file.arrayBuffer())
     const back = Buffer.from(await backFile.arrayBuffer())
-    const side = Buffer.from(await sideFile.arrayBuffer())
 
-    result = await runPhotoPipeline({ front, back, side }, { slug })
+    result = await runPhotoPipeline({ front, back }, { slug })
   } catch (error) {
     console.error('[admin/upload] pipeline falló:', error)
     return NextResponse.json(
@@ -160,30 +154,15 @@ export async function POST(request: Request) {
     })
 
     // Vista trasera real: es la que hace que el 3D no sea simétrico.
-    if (result.backPhotoUrl) {
-      await db.insert(schema.productMedia).values({
-        productId: product.id,
-        colorId: color.id,
-        kind: 'back',
-        url: result.backPhotoUrl,
-        alt: `${name}, vista trasera`,
-        sortOrder: 1,
-        isEditorial: false,
-      })
-    }
-
-    // Vista lateral: se guarda en la galería y alimenta el perfil del modelo.
-    if (result.sideCutoutUrl) {
-      await db.insert(schema.productMedia).values({
-        productId: product.id,
-        colorId: color.id,
-        kind: 'detail',
-        url: `/api/media/products/${slug}-side.jpg`,
-        alt: `${name}, vista lateral`,
-        sortOrder: 2,
-        isEditorial: false,
-      })
-    }
+    await db.insert(schema.productMedia).values({
+      productId: product.id,
+      colorId: color.id,
+      kind: 'back',
+      url: result.backPhotoUrl,
+      alt: `${name}, vista trasera`,
+      sortOrder: 1,
+      isEditorial: false,
+    })
 
     // Un modelo 3D listo por producto/color
     await db.insert(schema.models3d).values({
@@ -208,7 +187,6 @@ export async function POST(request: Request) {
         photo: result.photoUrl,
         cutout: result.cutoutUrl,
         backCutout: result.backCutoutUrl,
-        sideCutout: result.sideCutoutUrl,
         depth: result.depthUrl,
       },
       timings: result.timings,

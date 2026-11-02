@@ -35,7 +35,6 @@ const STAGES = ['Normalizando la foto', 'Recortando la prenda', 'Estimando profu
 export function StudioUploader({ colors }: { colors: ColorOption[] }) {
   const [file, setFile] = useState<File | null>(null)
   const [backFile, setBackFile] = useState<File | null>(null)
-  const [sideFile, setSideFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -53,7 +52,6 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
 
   const inputRef = useRef<HTMLInputElement>(null)
   const backRef = useRef<HTMLInputElement>(null)
-  const sideRef = useRef<HTMLInputElement>(null)
 
   function pickFile(next: File | null) {
     setError(null)
@@ -83,7 +81,6 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
       const body = new FormData()
       body.set('file', file)
       if (backFile) body.set('fileBack', backFile)
-      if (sideFile) body.set('fileSide', sideFile)
       body.set('name', name)
       body.set('subtitle', subtitle)
       body.set('category', category)
@@ -176,8 +173,8 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
           fondo, aísla la prenda y estima el volumen sin intervención.
         </p>
 
-        {/* Las tres vistas son obligatorias: sin trasera y lateral el 3D es inventado */}
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        {/* Frontal y trasera son obligatorias: el revés usa la foto real */}
+        <div className="mt-4">
           <ExtraSlot
             label="Vista trasera"
             hint="Obligatoria"
@@ -186,34 +183,22 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
             onPick={(f) => setBackFile(f)}
             onClear={() => setBackFile(null)}
           />
-          <ExtraSlot
-            label="Vista lateral"
-            hint="Obligatoria"
-            file={sideFile}
-            inputRef={sideRef}
-            onPick={(f) => setSideFile(f)}
-            onClear={() => setSideFile(null)}
-          />
         </div>
 
         {(() => {
-          const missing = [
-            !file ? 'frontal' : null,
-            !backFile ? 'trasera' : null,
-            !sideFile ? 'lateral' : null,
-          ].filter(Boolean)
+          const missing = [!file ? 'frontal' : null, !backFile ? 'trasera' : null].filter(Boolean)
           if (missing.length === 0) {
             return (
               <p className="mt-3 inline-flex items-center gap-1.5 text-[10px] tracking-[0.14em] text-ink uppercase">
                 <CheckCircle2 className="size-3.5 text-copper" strokeWidth={2} />
-                Tres vistas completas
+                Frontal y trasera listas
               </p>
             )
           }
           return (
             <p className="mt-3 border border-ink/15 bg-paper-dim px-3 py-2 text-[10px] leading-relaxed text-stone-dark">
-              Faltan las vistas: {missing.join(', ')}. Se requieren las tres (frontal, trasera y
-              lateral) para construir el 3D de la prenda real.
+              Faltan las vistas: {missing.join(', ')}. Se requieren la frontal y la trasera para
+              construir el 3D de la prenda real.
             </p>
           )
         })()}
@@ -356,12 +341,12 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
 
         <button
           type="submit"
-          disabled={!file || !backFile || !sideFile || busy || name.length < 2}
+          disabled={!file || !backFile || busy || name.length < 2}
           className="mt-7 w-full bg-ink py-4 text-[11px] tracking-[0.24em] text-paper uppercase transition-colors hover:bg-copper disabled:cursor-not-allowed disabled:opacity-30"
         >
           {busy
             ? 'Procesando…'
-            : !file || !backFile || !sideFile
+            : !file || !backFile
               ? 'Faltan vistas por subir'
               : 'Generar modelo 3D y publicar'}
         </button>

@@ -1,38 +1,34 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
-import { isolateGarment } from '@/lib/3d/segment-garment'
 
 /**
  * Pipeline foto → activos del visor 3D.
  *
- * Recibe las vistas que envía el gerente y produce, para cada una, la prenda
- * aislada con transparencia; además calcula el mapa de profundidad del frente,
- * que es el que da volumen a la malla.
+ * El gerente envía la vista frontal y la trasera; las imágenes son del producto
+ * sobre fondo limpio (con su propio gancho), así que aquí solo se recorta el
+ * fondo: no hay detección de personas ni clasificación de prendas.
  *
- * Con la vista trasera real el modelo deja de ser simétrico: el revés se
- * texturiza con la fotografía auténtica de la espalda.
+ * Produce, por vista, un PNG con transparencia, y calcula el mapa de
+ * profundidad del frente, que es el que da volumen a la malla.
  */
 
 export type PipelineViews = {
   front: Buffer
-  back?: Buffer
-  side?: Buffer
+  back: Buffer
 }
 
-export type PipelineStage = 'ingest' | 'garment' | 'depth' | 'done'
+export type PipelineStage = 'ingest' | 'cutout' | 'depth' | 'done'
 
 export type PipelineResult = {
   slug: string
   photoUrl: string
   cutoutUrl: string
-  backPhotoUrl: string | null
-  backCutoutUrl: string | null
-  sideCutoutUrl: string | null
+  backPhotoUrl: string
+  backCutoutUrl: string
   depthUrl: string
   width: number
   height: number
-  coverage: number
   timings: Partial<Record<PipelineStage, number>>
 }
 
@@ -70,7 +66,8 @@ export function slugify(input: string): string {
     .slice(0, 60)
 }
 
-async function normalize(input: Buffer, targetPath: string) {
+/** Normaliza la foto original: sRGB, sin EXIF, lado mayor 2000 px. */
+async function normalize(input: Buffer, targetPath: string): Promise<Buffer> {
   const buffer = await sharp(input)
     .rotate()
     .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
@@ -81,18 +78,17 @@ async function normalize(input: Buffer, targetPath: string) {
   return buffer
 }
 
-/** Aísla la prenda; si el parser falla, cae al matting simple. */
-async function cutoutFrom(normalizedJpeg: Buffer): Promise<Buffer> {
-  try {
-    const garment = await isolateGarment(normalizedJpeg, true)
-    return garment.png
-  } catch (error) {
-    console.warn('[pipeline] aislamiento de prenda falló, uso matting simple:', (error as Error).message)
-    const { removeBackground } = await import('@imgly/background-removal-node')
-    const blob = new Blob([new Uint8Array(normalizedJpeg)], { type: 'image/jpeg' })
-    const matte = await removeBackground(blob, { model: 'medium', output: { format: 'image/png' } })
-    return sharp(Buffer.from(await matte.arrayBuffer())).trim({ threshold: 1 }).png().toBuffer()
-  }
+/** Recorta el fondo. El gancho de la foto queda incluido: es parte del producto. */
+async function cutout(normalizedJpeg: Buffer): Promise<Buffer> {
+  const { removeBackground } = await import('@imgly/background-removal-node')
+  const blob = new Blob([new Uint8Array(normalizedJpeg)], { type: 'image/jpeg' })
+  const matte = await removeBackground(blob, { model: 'medium', output: { format: 'image/png' } })
+
+  return sharp(Buffer.from(await matte.arrayBuffer()))
+    .trim({ threshold: 1 })
+    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+    .png({ compressionLevel: 9 })
+    .toBuffer()
 }
 
 async function depthMap(cutoutPath: string, targetPath: string) {
@@ -134,42 +130,24 @@ export async function runPhotoPipeline(
   // ── 1. Ingesta ────────────────────────────────────────────
   let t = Date.now()
   const frontName = `${slug}.jpg`
+  const backName = `${slug}-back.jpg`
+
   const frontJpeg = await normalize(views.front, join(MEDIA_ROOT, 'products', frontName))
-
-  let backName: string | null = null
-  let backJpeg: Buffer | null = null
-  if (views.back) {
-    backName = `${slug}-back.jpg`
-    backJpeg = await normalize(views.back, join(MEDIA_ROOT, 'products', backName))
-  }
-
-  if (views.side) {
-    await normalize(views.side, join(MEDIA_ROOT, 'products', `${slug}-side.jpg`))
-  }
+  const backJpeg = await normalize(views.back, join(MEDIA_ROOT, 'products', backName))
   timings.ingest = Date.now() - t
 
-  // ── 2. Prenda aislada ─────────────────────────────────────
+  // ── 2. Recorte de fondo ───────────────────────────────────
   t = Date.now()
   const frontCutoutName = `${slug}.png`
+  const backCutoutName = `${slug}-back.png`
+
   const frontCutoutPath = join(MEDIA_ROOT, 'cutouts', frontCutoutName)
-  const frontCutout = await cutoutFrom(frontJpeg)
+  const frontCutout = await cutout(frontJpeg)
   const frontInfo = await sharp(frontCutout).toFile(frontCutoutPath)
 
-  let backCutoutName: string | null = null
-  if (backJpeg) {
-    backCutoutName = `${slug}-back.png`
-    const backCutout = await cutoutFrom(backJpeg)
-    await sharp(backCutout).toFile(join(MEDIA_ROOT, 'cutouts', backCutoutName))
-  }
-
-  let sideCutoutName: string | null = null
-  if (views.side) {
-    sideCutoutName = `${slug}-side.png`
-    const sideJpeg = await sharp(join(MEDIA_ROOT, 'products', `${slug}-side.jpg`)).toBuffer()
-    const sideCutout = await cutoutFrom(sideJpeg)
-    await sharp(sideCutout).toFile(join(MEDIA_ROOT, 'cutouts', sideCutoutName))
-  }
-  timings.garment = Date.now() - t
+  const backCutout = await cutout(backJpeg)
+  await sharp(backCutout).toFile(join(MEDIA_ROOT, 'cutouts', backCutoutName))
+  timings.cutout = Date.now() - t
 
   // ── 3. Profundidad del frente ─────────────────────────────
   t = Date.now()
@@ -181,13 +159,11 @@ export async function runPhotoPipeline(
     slug,
     photoUrl: `/api/media/products/${frontName}`,
     cutoutUrl: `/api/media/cutouts/${frontCutoutName}`,
-    backPhotoUrl: backName ? `/api/media/products/${backName}` : null,
-    backCutoutUrl: backCutoutName ? `/api/media/cutouts/${backCutoutName}` : null,
-    sideCutoutUrl: sideCutoutName ? `/api/media/cutouts/${sideCutoutName}` : null,
+    backPhotoUrl: `/api/media/products/${backName}`,
+    backCutoutUrl: `/api/media/cutouts/${backCutoutName}`,
     depthUrl: `/api/media/depth/${frontCutoutName}`,
     width: frontInfo.width,
     height: frontInfo.height,
-    coverage: 1,
     timings,
   }
 }
