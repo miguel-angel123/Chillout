@@ -42,7 +42,8 @@ async function settle(page) {
 }
 
 async function shot(path, file, { fullPage = true, wait = 1400 } = {}) {
-  await page.goto(BASE + path, { waitUntil: 'networkidle', timeout: 90_000 })
+  await page.goto(BASE + path, { waitUntil: 'domcontentloaded', timeout: 90_000 })
+  await page.waitForSelector('main', { timeout: 60_000 })
   await page.waitForTimeout(wait)
   if (fullPage) await settle(page)
   await page.screenshot({ path: `${OUT}/${file}`, fullPage })
@@ -52,6 +53,29 @@ async function shot(path, file, { fullPage = true, wait = 1400 } = {}) {
 await shot('/', 'home.png')
 await shot('/coleccion', 'coleccion.png')
 await shot('/producto/hoodie-rib', 'producto.png')
+
+// Visor 3D: se abre desde la ficha y se gira con un arrastre real.
+await page.goto(BASE + '/producto/quarterzip-solid', { waitUntil: 'domcontentloaded', timeout: 90_000 })
+await page.waitForSelector('button[aria-pressed]', { timeout: 60_000 })
+await page.waitForTimeout(2000)
+await page.getByRole('button', { name: /ver en 3d/i }).click()
+await page.waitForSelector('canvas', { timeout: 60_000 })
+await page.waitForTimeout(6000)
+await page.screenshot({ path: `${OUT}/producto-3d.png` })
+console.log('✓ producto-3d.png')
+
+// Arrastre para girar y verificar que el modelo responde
+const canvas = page.locator('canvas').first()
+const box = await canvas.boundingBox()
+if (box) {
+  await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.5)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.24, box.y + box.height * 0.5, { steps: 24 })
+  await page.mouse.up()
+  await page.waitForTimeout(1800)
+  await page.screenshot({ path: `${OUT}/producto-3d-girado.png` })
+  console.log('✓ producto-3d-girado.png')
+}
 
 const mobile = await browser.newContext({
   viewport: { width: 390, height: 844 },

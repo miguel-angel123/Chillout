@@ -1,17 +1,33 @@
 'use client'
 
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
-import { Box, Check, Minus, Plus } from 'lucide-react'
+import { Box, Camera, Check, Minus, Plus } from 'lucide-react'
 import { Price } from '@/components/product/price'
 import type { ProductDetailVM } from '@/lib/catalog'
+import { cutoutUrl } from '@/lib/3d/paths'
 import { cn } from '@/lib/utils'
+
+// El visor usa WebGL y window: solo existe en el cliente.
+const ProductViewer = dynamic(
+  () => import('@/components/three/product-viewer').then((m) => m.ProductViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid aspect-[3/4] w-full place-items-center bg-paper-dim">
+        <p className="text-[10px] tracking-[0.24em] text-stone uppercase">Cargando 3D…</p>
+      </div>
+    ),
+  },
+)
 
 export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const [colorSlug, setColorSlug] = useState(product.colors[0]?.slug ?? '')
   const [sizeSlug, setSizeSlug] = useState<string | null>(null)
   const [imageIndex, setImageIndex] = useState(0)
   const [added, setAdded] = useState(false)
+  const [view, setView] = useState<'foto' | '3d'>('foto')
 
   const color = useMemo(
     () => product.colors.find((c) => c.slug === colorSlug) ?? product.colors[0],
@@ -26,6 +42,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   }, [color])
 
   const activeImage = images[imageIndex] ?? images[0]
+  const modelUrl = activeImage ? cutoutUrl(activeImage.url) : null
   const inStockSizes = new Set(color?.sizesAvailable ?? [])
   const selectedSizeInStock = sizeSlug ? inStockSizes.has(sizeSlug.toUpperCase()) : false
 
@@ -42,26 +59,64 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
 
   return (
     <div className="mx-auto grid max-w-[1600px] gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:py-16">
-      {/* ── Galería ─────────────────────────────────────────── */}
+      {/* ── Galería / 3D ─────────────────────────────────────── */}
       <div>
-        <div className="relative aspect-[3/4] overflow-hidden bg-paper-dim">
-          {activeImage ? (
-            <Image
-              key={activeImage.url}
-              src={activeImage.url}
-              alt={activeImage.alt}
-              fill
-              priority
-              sizes="(max-width: 1024px) 92vw, 52vw"
-              className="reveal object-cover"
-            />
-          ) : null}
-
-          <div className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full bg-ink/85 px-3 py-1.5 text-[9px] tracking-[0.18em] text-paper uppercase backdrop-blur-sm">
+        <div className="mb-3 flex items-center gap-1 border border-ink/15 p-1">
+          <button
+            type="button"
+            onClick={() => setView('foto')}
+            aria-pressed={view === 'foto'}
+            className={cn(
+              'inline-flex flex-1 items-center justify-center gap-2 py-2.5 text-[10px] tracking-[0.2em] uppercase transition-colors',
+              view === 'foto' ? 'bg-ink text-paper' : 'text-stone-dark hover:text-ink',
+            )}
+          >
+            <Camera className="size-3.5" strokeWidth={1.6} />
+            Fotos
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('3d')}
+            disabled={!modelUrl}
+            aria-pressed={view === '3d'}
+            className={cn(
+              'inline-flex flex-1 items-center justify-center gap-2 py-2.5 text-[10px] tracking-[0.2em] uppercase transition-colors',
+              view === '3d' ? 'bg-ink text-paper' : 'text-stone-dark hover:text-ink',
+              !modelUrl && 'cursor-not-allowed opacity-40',
+            )}
+          >
             <Box className="size-3.5" strokeWidth={1.6} />
-            Vista 3D disponible
-          </div>
+            Ver en 3D
+          </button>
         </div>
+
+        {view === '3d' && modelUrl ? (
+          <ProductViewer imageUrl={modelUrl} label={`Vista 3D de ${product.name}`} />
+        ) : (
+          <div className="relative aspect-[3/4] overflow-hidden bg-paper-dim">
+            {activeImage ? (
+              <Image
+                key={activeImage.url}
+                src={activeImage.url}
+                alt={activeImage.alt}
+                fill
+                priority
+                sizes="(max-width: 1024px) 92vw, 52vw"
+                className="reveal object-cover"
+              />
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setView('3d')}
+              disabled={!modelUrl}
+              className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full bg-ink/85 px-3 py-1.5 text-[9px] tracking-[0.18em] text-paper uppercase backdrop-blur-sm transition-colors hover:bg-copper disabled:opacity-50"
+            >
+              <Box className="size-3.5" strokeWidth={1.6} />
+              Abrir en 3D
+            </button>
+          </div>
+        )}
 
         {images.length > 1 ? (
           <ul className="mt-3 flex gap-2">

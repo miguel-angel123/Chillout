@@ -7,6 +7,11 @@
 # transitivas irresolubles (esbuild, detect-libc, @swc/helpers).
 nodeLinker: hoisted
 
+# @imgly/background-removal-node trae un `sharp` anidado cuya compilación nativa
+# falla en este entorno. Se fuerza una sola versión, la que ya funciona.
+overrides:
+  sharp: ^0.35.5
+
 # pnpm 11 bloquea los scripts de instalación por seguridad. Estas son las
 # únicas dependencias que necesitan binarios nativos:
 #   · esbuild → motor de tsx, vitest y drizzle-kit
