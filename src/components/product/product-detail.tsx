@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 import { Box, Camera, Check, Minus, Plus } from 'lucide-react'
 import { Price } from '@/components/product/price'
+import { useCart } from '@/lib/cart/store'
 import type { ProductDetailVM } from '@/lib/catalog'
 import { backCutoutUrl, cutoutUrl, depthUrl } from '@/lib/3d/paths'
 import { cn } from '@/lib/utils'
@@ -28,6 +29,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const [imageIndex, setImageIndex] = useState(0)
   const [added, setAdded] = useState(false)
   const [view, setView] = useState<'foto' | '3d'>('foto')
+  const addToCart = useCart((state) => state.add)
 
   const color = useMemo(
     () => product.colors.find((c) => c.slug === colorSlug) ?? product.colors[0],
@@ -55,7 +57,18 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   }
 
   function handleAdd() {
-    if (!selectedSizeInStock) return
+    if (!selectedSizeInStock || !sizeSlug || !color) return
+
+    addToCart({
+      slug: product.slug,
+      name: product.name,
+      colorSlug: color.slug,
+      colorName: color.name,
+      size: sizeSlug.toUpperCase(),
+      priceCop: product.priceCop,
+      image: color.image.url,
+    })
+
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)
   }

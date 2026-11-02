@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Menu, Search, ShoppingBag, User } from 'lucide-react'
+import { Menu, Search, User } from 'lucide-react'
+import { CartButton } from '@/components/cart/cart-button'
 import { BrandMark } from '@/components/site/brand-mark'
 import { NAV_LINKS, SITE } from '@/lib/brand'
 
@@ -61,14 +62,7 @@ export function Header() {
           >
             <User className="size-[18px]" strokeWidth={1.5} />
           </Link>
-          <button
-            type="button"
-            aria-label="Carrito, 0 artículos"
-            className="relative inline-flex size-10 items-center justify-center text-ink/80 transition-colors hover:text-ink"
-          >
-            <ShoppingBag className="size-[18px]" strokeWidth={1.5} />
-            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-copper" aria-hidden />
-          </button>
+          <CartButton label="Carrito" />
         </div>
       </div>
     </header>

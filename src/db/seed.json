@@ -27,9 +27,7 @@
       "category": "hoodies",
       "fit": "oversize",
       "fabric": "60% algodón, 40% acrílico · 580 g/m²",
-      "priceCop": null,
-      "compareAtCop": null,
-      "tags": ["Heavyweight", "Oversize", "Hoodies", "Básicos"],
+      "priceCop": 329000, "compareAtCop": null, "tags": ["Heavyweight", "Oversize", "Hoodies", "Básicos"],
       "featured": true,
       "colors": [
         {
@@ -67,7 +65,7 @@
       "category": "sueteres",
       "fit": "regular",
       "fabric": "55% algodón, 45% acrílico · 420 g/m²",
-      "priceCop": null,
+      "priceCop": 289000,
       "compareAtCop": null,
       "tags": ["Básicos", "Suéteres", "Cuello polo"],
       "featured": true,
@@ -103,9 +101,7 @@
       "category": "sueteres",
       "fit": "regular",
       "fabric": "55% algodón, 45% acrílico · 460 g/m²",
-      "priceCop": null,
-      "compareAtCop": null,
-      "tags": ["Cuello polo", "Suéteres", "Básicos"],
+      "priceCop": 309000, "compareAtCop": 359000, "tags": ["Cuello polo", "Suéteres", "Básicos"],
       "featured": true,
       "colors": [
         {

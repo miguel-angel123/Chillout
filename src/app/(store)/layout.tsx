@@ -1,8 +1,9 @@
+import { CartDrawer } from '@/components/cart/cart-drawer'
 import { Footer } from '@/components/site/footer'
 import { Header } from '@/components/site/header'
 
 /**
- * Chrome de la tienda: barra de anuncios, navegación y pie.
+ * Chrome de la tienda: barra de anuncios, navegación, pie y carrito lateral.
  * Vive en un grupo de rutas para que el panel de administración y las rutas de
  * API no hereden la navegación pública.
  */
@@ -18,6 +19,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
       <Header />
       <main id="contenido">{children}</main>
       <Footer />
+      <CartDrawer />
     </>
   )
 }
