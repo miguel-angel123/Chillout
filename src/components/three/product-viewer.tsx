@@ -1,62 +1,111 @@
 'use client'
 
-import { Suspense, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame, useLoader } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Move3d } from 'lucide-react'
 import * as THREE from 'three'
-import { buildReliefGeometry } from '@/lib/3d/relief-geometry'
+import { buildVolumeGeometry, type VolumeResult } from '@/lib/3d/volume-geometry'
 import { cn } from '@/lib/utils'
 
-function Garment({
-  url,
+function loadTexture(url: string): Promise<THREE.Texture | null> {
+  return new Promise((resolve) => {
+    new THREE.TextureLoader().load(
+      url,
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace
+        // Sin mipmaps: la minificación promedia el alfa y puntea el contorno.
+        texture.generateMipmaps = false
+        texture.minFilter = THREE.LinearFilter
+        texture.magFilter = THREE.LinearFilter
+        texture.anisotropy = 8
+        texture.needsUpdate = true
+        resolve(texture)
+      },
+      undefined,
+      () => resolve(null),
+    )
+  })
+}
+
+type Built = {
+  photo: THREE.Texture
+  volume: VolumeResult
+}
+
+function GarmentModel({
+  photoUrl,
+  depthUrl,
   onReady,
 }: {
-  url: string
+  photoUrl: string
+  depthUrl: string | null
   onReady?: () => void
 }) {
-  const texture = useLoader(THREE.TextureLoader, url)
-
-  const { geometry } = useMemo(() => {
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = 8
-    // Sin mipmaps: la minificación promedia el canal alfa y produce un borde
-    // punteado donde el `alphaTest` recorta la silueta.
-    texture.generateMipmaps = false
-    texture.minFilter = THREE.LinearFilter
-    texture.magFilter = THREE.LinearFilter
-    texture.needsUpdate = true
-    const image = texture.image as HTMLImageElement
-    const result = buildReliefGeometry(image)
-    onReady?.()
-    return result
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [texture])
-
-  const group = useRef<THREE.Group>(null)
+  const [built, setBuilt] = useState<Built | null>(null)
   const keyLight = useRef<THREE.DirectionalLight>(null)
+
+  useEffect(() => {
+    let alive = true
+    let created: Built | null = null
+
+    void (async () => {
+      const [photo, depth] = await Promise.all([
+        loadTexture(photoUrl),
+        depthUrl ? loadTexture(depthUrl) : Promise.resolve(null),
+      ])
+      if (!alive || !photo || !photo.image) return
+
+      const volume = buildVolumeGeometry(
+        photo.image as HTMLImageElement,
+        (depth?.image as HTMLImageElement | undefined) ?? null,
+      )
+      created = { photo, volume }
+      setBuilt(created)
+      onReady?.()
+    })()
+
+    return () => {
+      alive = false
+      if (created) {
+        created.volume.front.dispose()
+        created.volume.back.dispose()
+        created.photo.dispose()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoUrl, depthUrl])
 
   useFrame(({ clock, pointer }) => {
     const t = clock.getElapsedTime()
-    // Haz de luz que recorre la tela suavemente
     if (keyLight.current) {
-      keyLight.current.position.x = Math.sin(t * 0.35) * 3.2 + pointer.x * 0.8
-      keyLight.current.position.y = 2.2 + pointer.y * 0.6
+      keyLight.current.position.x = Math.sin(t * 0.32) * 3.1 + pointer.x * 0.9
+      keyLight.current.position.y = 2.3 + pointer.y * 0.7
     }
   })
 
+  if (!built) return null
+
   return (
-    <group ref={group}>
+    <group>
       <directionalLight ref={keyLight} position={[2.6, 2.4, 3.4]} intensity={2.1} color="#fff6ec" />
-      <directionalLight position={[-3.2, 0.6, -1.6]} intensity={0.85} color="#cfd8e6" />
-      <ambientLight intensity={0.85} />
-      <mesh geometry={geometry} castShadow receiveShadow>
+      <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.0} color="#cfd8e6" />
+      <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
+      <ambientLight intensity={0.8} />
+
+      {/* Frente: la foto exacta sobre la superficie con bulto */}
+      <mesh geometry={built.volume.front}>
+        <meshStandardMaterial map={built.photo} roughness={0.95} metalness={0.02} alphaTest={0.4} />
+      </mesh>
+
+      {/* Revés: misma prenda, cerrada, ligeramente más apagada */}
+      <mesh geometry={built.volume.back}>
         <meshStandardMaterial
-          map={texture}
-          roughness={0.95}
-          metalness={0.02}
+          map={built.photo}
+          color="#cfc8bd"
+          roughness={0.98}
+          metalness={0.0}
           alphaTest={0.4}
-          side={THREE.DoubleSide}
         />
       </mesh>
     </group>
@@ -65,15 +114,19 @@ function Garment({
 
 export function ProductViewer({
   imageUrl,
+  depthUrl,
   label,
   className,
 }: {
   imageUrl: string
+  depthUrl?: string | null
   label: string
   className?: string
 }) {
   const [ready, setReady] = useState(false)
   const [interacted, setInteracted] = useState(false)
+
+  const framed = useMemo(() => ({ position: [0, 0, 2.15] as [number, number, number], fov: 30 }), [])
 
   return (
     <div
@@ -82,26 +135,27 @@ export function ProductViewer({
       aria-label={`${label}. Arrastra para girar la prenda.`}
     >
       <Canvas
-        camera={{ position: [0, 0, 2.2], fov: 30 }}
+        camera={framed}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
         onPointerDown={() => setInteracted(true)}
         style={{ touchAction: 'pan-y' }}
       >
         <Suspense fallback={null}>
-          <Garment url={imageUrl} onReady={() => setReady(true)} />
+          <GarmentModel photoUrl={imageUrl} depthUrl={depthUrl ?? null} onReady={() => setReady(true)} />
         </Suspense>
+
         <OrbitControls
           makeDefault
           enablePan={false}
           enableZoom={false}
-          minPolarAngle={Math.PI * 0.33}
-          maxPolarAngle={Math.PI * 0.67}
-          minAzimuthAngle={-Math.PI / 3}
-          maxAzimuthAngle={Math.PI / 3}
+          minPolarAngle={Math.PI * 0.3}
+          maxPolarAngle={Math.PI * 0.7}
           enableDamping
           dampingFactor={0.08}
-          rotateSpeed={0.55}
+          rotateSpeed={0.6}
+          autoRotate={!interacted}
+          autoRotateSpeed={0.7}
         />
       </Canvas>
 
@@ -115,7 +169,7 @@ export function ProductViewer({
         <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-ink/85 px-3.5 py-2 text-[9px] tracking-[0.18em] text-paper uppercase backdrop-blur-sm">
             <Move3d className="size-3.5" strokeWidth={1.6} />
-            Arrastra para girar
+            Arrastra para girar · 360°
           </span>
         </div>
       ) : null}
