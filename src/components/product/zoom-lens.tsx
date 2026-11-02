@@ -33,8 +33,12 @@ export function ZoomLens({
   const LENS = 190
 
   function move(event: React.PointerEvent<HTMLDivElement>) {
-    // Solo con el puntero presionado: en móvil evita bloquear el scroll.
-    if (event.pointerType !== 'mouse' && event.buttons === 0) return
+    // Solo amplía mientras el botón está presionado (buttons === 1).
+    // Pasar el ratón por encima no debe activar la lupa.
+    if (event.buttons !== 1) {
+      if (lens) setLens(null)
+      return
+    }
 
     const rect = event.currentTarget.getBoundingClientRect()
     setLens({
