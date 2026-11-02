@@ -1,14 +1,20 @@
 import type { Metadata } from 'next'
-import { ProductCard } from '@/components/product/product-card'
-import { getAllProducts } from '@/lib/catalog'
+import { Suspense } from 'react'
+import { CatalogView } from '@/components/catalog/catalog-view'
+import { getAllProducts, getAllTags } from '@/lib/catalog'
 
 export const metadata: Metadata = {
   title: 'Colección',
-  description: 'Hoodies acanalados y suéteres cuello polo tejidos en Colombia. Explora la colección completa de CHILLOUT.',
+  description:
+    'Hoodies acanalados y suéteres cuello polo tejidos en Colombia. Explora la colección completa de CHILLOUT.',
 }
 
-export default async function CollectionPage() {
-  const products = await getAllProducts()
+type SearchParams = Promise<{ q?: string; tag?: string; view?: string }>
+
+export default async function CollectionPage({ searchParams }: { searchParams: SearchParams }) {
+  const [products, tags, params] = await Promise.all([getAllProducts(), getAllTags(), searchParams])
+
+  const view = params.view === 'tienda' ? 'tienda' : 'lookbook'
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 lg:py-16">
@@ -22,11 +28,15 @@ export default async function CollectionPage() {
         </p>
       </header>
 
-      <div className="mt-12 grid gap-x-5 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((product, i) => (
-          <ProductCard key={product.slug} product={product} priority={i < 3} />
-        ))}
-      </div>
+      <Suspense fallback={<div className="mt-12 h-24" />}>
+        <CatalogView
+          products={products}
+          tags={tags}
+          initialQuery={params.q ?? ''}
+          initialTag={params.tag ?? 'todas'}
+          initialView={view}
+        />
+      </Suspense>
     </div>
   )
 }
