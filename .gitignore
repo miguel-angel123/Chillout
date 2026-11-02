@@ -14,6 +14,9 @@ dist/
 # local tooling (portable git, caches)
 .tools/
 
+# pesos de modelos IA (se descargan solos la primera vez)
+.models/
+
 # local database (pglite)
 /.data/
 *.pglite

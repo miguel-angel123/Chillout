@@ -33,6 +33,50 @@ type Built = {
   volume: VolumeResult
 }
 
+/**
+ * Gancho de percha: madera clara y alambre metálico. La barra inferior queda
+ * oculta dentro de los hombros de la prenda, así se lee como colgada.
+ */
+function Hanger({ y = 0.44 }: { y?: number }) {
+  const wood = '#d8b98d'
+  const metal = '#c4c8ce'
+  const arm = 0.36
+  const angle = 0.588 // 33.69°
+
+  return (
+    // Ligeramente detrás del plano delantero: las varas quedan tras el cuello.
+    <group position={[0, y, -0.07]}>
+      {/* gancho */}
+      <mesh position={[0, 0.168, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.028, 0.0048, 8, 26, Math.PI * 1.55]} />
+        <meshStandardMaterial color={metal} metalness={0.95} roughness={0.22} />
+      </mesh>
+      <mesh position={[0, 0.105, 0]}>
+        <cylinderGeometry args={[0.0048, 0.0048, 0.09, 8]} />
+        <meshStandardMaterial color={metal} metalness={0.95} roughness={0.22} />
+      </mesh>
+
+      {/* cuerpo de madera */}
+      <mesh position={[0, 0.04, 0]}>
+        <cylinderGeometry args={[0.009, 0.009, 0.05, 8]} />
+        <meshStandardMaterial color={wood} roughness={0.72} />
+      </mesh>
+      <mesh position={[-0.15, -0.1, 0]} rotation={[0, 0, angle]}>
+        <boxGeometry args={[arm, 0.014, 0.014]} />
+        <meshStandardMaterial color={wood} roughness={0.72} />
+      </mesh>
+      <mesh position={[0.15, -0.1, 0]} rotation={[0, 0, -angle]}>
+        <boxGeometry args={[arm, 0.014, 0.014]} />
+        <meshStandardMaterial color={wood} roughness={0.72} />
+      </mesh>
+      <mesh position={[0, -0.2, 0]}>
+        <boxGeometry args={[0.6, 0.014, 0.014]} />
+        <meshStandardMaterial color={wood} roughness={0.72} />
+      </mesh>
+    </group>
+  )
+}
+
 function GarmentModel({
   photoUrl,
   depthUrl,
@@ -87,11 +131,13 @@ function GarmentModel({
   if (!built) return null
 
   return (
-    <group>
+    <group position={[0, -0.12, 0]}>
       <directionalLight ref={keyLight} position={[2.6, 2.4, 3.4]} intensity={2.1} color="#fff6ec" />
       <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.0} color="#cfd8e6" />
       <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
-      <ambientLight intensity={0.8} />
+      <ambientLight intensity={0.85} />
+
+      <Hanger />
 
       {/* Frente: la foto exacta sobre la superficie con bulto */}
       <mesh geometry={built.volume.front}>
@@ -126,11 +172,11 @@ export function ProductViewer({
   const [ready, setReady] = useState(false)
   const [interacted, setInteracted] = useState(false)
 
-  const framed = useMemo(() => ({ position: [0, 0, 2.15] as [number, number, number], fov: 30 }), [])
+  const framed = useMemo(() => ({ position: [0, 0, 2.38] as [number, number, number], fov: 30 }), [])
 
   return (
     <div
-      className={cn('relative aspect-[3/4] w-full overflow-hidden bg-paper-dim', className)}
+      className={cn('relative aspect-[3/4] w-full overflow-hidden bg-white', className)}
       role="img"
       aria-label={`${label}. Arrastra para girar la prenda.`}
     >
@@ -160,7 +206,7 @@ export function ProductViewer({
       </Canvas>
 
       {!ready ? (
-        <div className="absolute inset-0 grid place-items-center bg-paper-dim">
+        <div className="absolute inset-0 grid place-items-center bg-white">
           <p className="text-[10px] tracking-[0.24em] text-stone uppercase">Generando 3D…</p>
         </div>
       ) : null}
