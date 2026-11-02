@@ -22,8 +22,8 @@ const VALUE_PROPS = [
   },
 ] as const
 
-export default function HomePage() {
-  const featured = getFeaturedProducts()
+export default async function HomePage() {
+  const featured = await getFeaturedProducts()
 
   return (
     <>

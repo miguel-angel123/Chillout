@@ -1,0 +1,134 @@
+{
+  "colors": [
+    { "slug": "naranja-quemado", "name": "Naranja quemado", "hex": "A9542E" },
+    { "slug": "negro", "name": "Negro", "hex": "121110" },
+    { "slug": "verde-bosque", "name": "Verde bosque", "hex": "123A2E" },
+    { "slug": "azul-marino", "name": "Azul marino", "hex": "1C2B45" },
+    { "slug": "borgona", "name": "Borgoña", "hex": "5A2130" },
+    { "slug": "crema", "name": "Crema", "hex": "EDE7DA" }
+  ],
+  "sizes": [
+    { "slug": "s", "label": "S", "sortOrder": 1, "chestCm": 104, "lengthCm": 66, "sleeveCm": 60 },
+    { "slug": "m", "label": "M", "sortOrder": 2, "chestCm": 110, "lengthCm": 68, "sleeveCm": 61 },
+    { "slug": "l", "label": "L", "sortOrder": 3, "chestCm": 116, "lengthCm": 70, "sleeveCm": 62 },
+    { "slug": "xl", "label": "XL", "sortOrder": 4, "chestCm": 122, "lengthCm": 72, "sleeveCm": 63 }
+  ],
+  "collections": [
+    { "slug": "nueva-coleccion", "name": "Nueva colección", "description": "Tejidos de temporada en punto grueso." },
+    { "slug": "mitos", "name": "Mitos", "description": "Prendas tejidas de edición continua." }
+  ],
+  "products": [
+    {
+      "slug": "hoodie-rib",
+      "name": "Hoodie Acanalado",
+      "subtitle": "Punto grueso · Capota",
+      "description": "Hoodie tejido en punto acanalado de gramaje alto. Capota doble con cordón, bolsillo canguro y puños elásticos. La caída es amplia sin perder estructura: abriga sin verse rígido. Confeccionado en Colombia.",
+      "line": "CHILLOUT",
+      "category": "hoodies",
+      "fit": "oversize",
+      "fabric": "60% algodón, 40% acrílico · 580 g/m²",
+      "priceCop": null,
+      "compareAtCop": null,
+      "tags": ["Heavyweight", "Oversize", "Hoodies", "Básicos"],
+      "featured": true,
+      "colors": [
+        {
+          "colorSlug": "naranja-quemado",
+          "stock": { "s": 4, "m": 2, "l": 6, "xl": 1 },
+          "images": [
+            { "url": "/media/products/hoodie-rib-orange-01.jpg", "alt": "Hoodie acanalado naranja quemado, vista frontal con capota y bolsillo canguro", "kind": "front" },
+            { "url": "/media/products/hoodie-rib-orange-02.jpg", "alt": "Hoodie acanalado naranja quemado en modelo, detalle de puño acanalado", "kind": "editorial", "isEditorial": true }
+          ]
+        },
+        {
+          "colorSlug": "negro",
+          "stock": { "s": 8, "m": 5, "l": 3, "xl": 2 },
+          "images": [
+            { "url": "/media/products/hoodie-rib-black-01.jpg", "alt": "Hoodie acanalado negro, vista frontal con bolsillo canguro", "kind": "front" },
+            { "url": "/media/products/hoodie-rib-black-02.jpg", "alt": "Hoodie acanalado negro en modelo urbano", "kind": "editorial", "isEditorial": true }
+          ]
+        },
+        {
+          "colorSlug": "verde-bosque",
+          "stock": { "s": 3, "m": 4, "l": 0, "xl": 0 },
+          "images": [
+            { "url": "/media/products/hoodie-rib-green-01.jpg", "alt": "Hoodie acanalado verde bosque, vista frontal", "kind": "front" },
+            { "url": "/media/products/hoodie-rib-green-02.jpg", "alt": "Hoodie acanalado verde bosque en modelo", "kind": "editorial", "isEditorial": true }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "quarterzip-solid",
+      "name": "Suéter Cuello Polo",
+      "subtitle": "Medio zip · Acanalado fino",
+      "description": "Suéter de cuello polo con medio zip metálico y acanalado vertical fino. Escote alto que sostiene la forma, mangas rectas con puño tejido y bajo elástico. Un básico de temporada que combina con sastrería o jean.",
+      "line": "CHILLOUT",
+      "category": "sueteres",
+      "fit": "regular",
+      "fabric": "55% algodón, 45% acrílico · 420 g/m²",
+      "priceCop": null,
+      "compareAtCop": null,
+      "tags": ["Básicos", "Suéteres", "Cuello polo"],
+      "featured": true,
+      "colors": [
+        {
+          "colorSlug": "azul-marino",
+          "stock": { "s": 5, "m": 7, "l": 4, "xl": 2 },
+          "images": [{ "url": "/media/products/quarterzip-solid-navy-01.jpg", "alt": "Suéter cuello polo azul marino con medio zip, sobre perchero", "kind": "flat" }]
+        },
+        {
+          "colorSlug": "negro",
+          "stock": { "s": 6, "m": 3, "l": 5, "xl": 1 },
+          "images": [{ "url": "/media/products/quarterzip-solid-black-01.jpg", "alt": "Suéter cuello polo negro con medio zip, sobre perchero", "kind": "flat" }]
+        },
+        {
+          "colorSlug": "borgona",
+          "stock": { "s": 2, "m": 4, "l": 2, "xl": 0 },
+          "images": [{ "url": "/media/products/quarterzip-solid-burgundy-01.jpg", "alt": "Suéter cuello polo borgoña con medio zip, sobre perchero", "kind": "flat" }]
+        },
+        {
+          "colorSlug": "crema",
+          "stock": { "s": 1, "m": 2, "l": 1, "xl": 1 },
+          "images": [{ "url": "/media/products/quarterzip-solid-cream-01.jpg", "alt": "Suéter cuello polo crema con medio zip dorado, sobre perchero", "kind": "flat" }]
+        }
+      ]
+    },
+    {
+      "slug": "quarterzip-stripe",
+      "name": "Suéter Polo Franjas",
+      "subtitle": "Medio zip · Franjas tejidas",
+      "description": "Suéter de cuello polo con medio zip y dos franjas en contraste sobre el pecho, tejidas en el cuerpo (no estampadas). El acanalado grueso da textura visible y el contraste en crema define la silueta.",
+      "line": "CHILLOUT",
+      "category": "sueteres",
+      "fit": "regular",
+      "fabric": "55% algodón, 45% acrílico · 460 g/m²",
+      "priceCop": null,
+      "compareAtCop": null,
+      "tags": ["Cuello polo", "Suéteres", "Básicos"],
+      "featured": true,
+      "colors": [
+        {
+          "colorSlug": "azul-marino",
+          "stock": { "s": 4, "m": 6, "l": 3, "xl": 1 },
+          "images": [{ "url": "/media/products/quarterzip-stripe-navy-01.jpg", "alt": "Suéter polo franjas azul marino con franjas crema, en modelo", "kind": "editorial", "isEditorial": true }]
+        },
+        {
+          "colorSlug": "verde-bosque",
+          "stock": { "s": 3, "m": 2, "l": 4, "xl": 2 },
+          "images": [{ "url": "/media/products/quarterzip-stripe-green-01.jpg", "alt": "Suéter polo franjas verde bosque con franjas crema, en modelo", "kind": "editorial", "isEditorial": true }]
+        },
+        {
+          "colorSlug": "negro",
+          "stock": { "s": 5, "m": 4, "l": 2, "xl": 0 },
+          "images": [{ "url": "/media/products/quarterzip-stripe-black-01.jpg", "alt": "Suéter polo franjas negro con franjas crema, en modelo", "kind": "editorial", "isEditorial": true }]
+        },
+        {
+          "colorSlug": "crema",
+          "stock": { "s": 2, "m": 3, "l": 1, "xl": 1 },
+          "images": [{ "url": "/media/products/quarterzip-stripe-cream-01.jpg", "alt": "Suéter polo franjas crema con franjas azul marino, en modelo", "kind": "editorial", "isEditorial": true }]
+        }
+      ]
+    }
+  ]
+}

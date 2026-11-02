@@ -65,8 +65,8 @@ export const products = pgTable(
     /** hoodie | quarter-zip | crew | tee | pants */
     fit: text('fit').notNull().default('regular'),
     fabric: text('fabric'),
-    /** Precio en pesos colombianos, entero, IVA incluido */
-    priceCop: integer('price_cop').notNull(),
+    /** Precio en pesos colombianos, entero, IVA incluido. Null = por definir. */
+    priceCop: integer('price_cop'),
     compareAtCop: integer('compare_at_cop'),
     status: productStatus('status').notNull().default('draft'),
     featured: boolean('featured').notNull().default(false),
@@ -96,7 +96,7 @@ export const productVariants = pgTable(
       .notNull()
       .references(() => sizes.id, { onDelete: 'restrict' }),
     sku: text('sku').notNull(),
-    priceCop: integer('price_cop').notNull(),
+    priceCop: integer('price_cop'),
     /** Stock real; alimenta el indicador de disponibilidad crítica (módulo 15) */
     stock: integer('stock').notNull().default(0),
     /** Umbral para "solo quedan N unidades" */

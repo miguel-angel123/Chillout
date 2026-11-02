@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { Box, Check, Minus, Plus } from 'lucide-react'
+import { Price } from '@/components/product/price'
 import type { ProductDetailVM } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
@@ -92,11 +93,12 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
         </h1>
         <p className="mt-1.5 text-sm text-stone-dark">{product.subtitle}</p>
 
-        <div className="mt-5 flex items-baseline gap-3">
-          <p className="text-lg text-ink tabular-nums">{product.priceLabel}</p>
-          {product.compareAtLabel ? (
-            <p className="text-sm text-stone line-through tabular-nums">{product.compareAtLabel}</p>
-          ) : null}
+        <div className="mt-5">
+          <Price
+            priceLabel={product.priceLabel}
+            compareAtLabel={product.compareAtLabel}
+            size="lg"
+          />
         </div>
         <p className="mt-1 text-[11px] text-stone">IVA incluido · Envío calculado en el checkout</p>
 

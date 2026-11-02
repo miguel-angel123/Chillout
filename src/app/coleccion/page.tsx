@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: 'Hoodies acanalados y suéteres cuello polo tejidos en Colombia. Explora la colección completa de CHILLOUT.',
 }
 
-export default function CollectionPage() {
-  const products = getAllProducts()
+export default async function CollectionPage() {
+  const products = await getAllProducts()
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-12 sm:px-6 lg:py-16">

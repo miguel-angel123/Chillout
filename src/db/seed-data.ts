@@ -1,198 +1,85 @@
+import { z } from 'zod'
+import raw from './seed.json'
+
 /**
- * Catálogo semilla de CHILLOUT — fuente única de verdad.
+ * Catálogo semilla — `seed.json` es la fuente única de verdad.
  *
- * Derivado de las 19 fotografías reales de la marca en `Chillout_imagenes/`.
- * Todo es editable desde el admin; esto solo siembra la primera versión.
+ * Se mantiene en JSON (y no en TypeScript) para que tanto la app como los
+ * scripts de línea de comandos en Node puro puedan leerlo sin necesidad de un
+ * transpilador. Aquí se valida con Zod, así un error de tipeo en el JSON falla
+ * ruidosamente en lugar de propagarse silenciosamente a la base de datos.
+ *
+ * Los precios son opcionales a propósito: el cliente aún no los ha definido y
+ * la interfaz muestra "Precio por confirmar" cuando no existen.
  */
 
-export type SeedColor = {
-  slug: string
-  name: string
-  /** Hex sin "#" */
-  hex: string
-}
+const seedImageSchema = z.object({
+  url: z.string().startsWith('/'),
+  alt: z.string().min(1),
+  kind: z.enum(['front', 'back', 'detail', 'editorial', 'flat']),
+  isEditorial: z.boolean().optional(),
+})
 
-export const SEED_COLORS: SeedColor[] = [
-  { slug: 'naranja-quemado', name: 'Naranja quemado', hex: 'A9542E' },
-  { slug: 'negro', name: 'Negro', hex: '121110' },
-  { slug: 'verde-bosque', name: 'Verde bosque', hex: '123A2E' },
-  { slug: 'azul-marino', name: 'Azul marino', hex: '1C2B45' },
-  { slug: 'borgona', name: 'Borgoña', hex: '5A2130' },
-  { slug: 'crema', name: 'Crema', hex: 'EDE7DA' },
-]
+const seedColorVariantSchema = z.object({
+  colorSlug: z.string().min(1),
+  stock: z.record(z.string(), z.number().int().min(0)),
+  images: z.array(seedImageSchema).min(1),
+})
 
-export type SeedSize = {
-  slug: string
-  label: string
-  sortOrder: number
-  chestCm: number
-  lengthCm: number
-  sleeveCm: number
-}
+const seedProductSchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  subtitle: z.string().min(1),
+  description: z.string().min(1),
+  line: z.enum(['CHILLOUT', 'MITOS']),
+  category: z.string().min(1),
+  fit: z.enum(['slim', 'regular', 'oversize']),
+  fabric: z.string().min(1),
+  priceCop: z.number().int().positive().nullable(),
+  compareAtCop: z.number().int().positive().nullable(),
+  tags: z.array(z.string()),
+  featured: z.boolean(),
+  colors: z.array(seedColorVariantSchema).min(1),
+})
 
-export const SEED_SIZES: SeedSize[] = [
-  { slug: 's', label: 'S', sortOrder: 1, chestCm: 104, lengthCm: 66, sleeveCm: 60 },
-  { slug: 'm', label: 'M', sortOrder: 2, chestCm: 110, lengthCm: 68, sleeveCm: 61 },
-  { slug: 'l', label: 'L', sortOrder: 3, chestCm: 116, lengthCm: 70, sleeveCm: 62 },
-  { slug: 'xl', label: 'XL', sortOrder: 4, chestCm: 122, lengthCm: 72, sleeveCm: 63 },
-]
+const seedColorSchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  hex: z.string().regex(/^[0-9A-Fa-f]{6}$/, 'hex debe ser de 6 dígitos sin #'),
+})
 
-export type SeedImage = {
-  url: string
-  alt: string
-  kind: 'front' | 'back' | 'detail' | 'editorial' | 'flat'
-  isEditorial?: boolean
-}
+const seedSizeSchema = z.object({
+  slug: z.string().min(1),
+  label: z.string().min(1),
+  sortOrder: z.number().int(),
+  chestCm: z.number().int().positive(),
+  lengthCm: z.number().int().positive(),
+  sleeveCm: z.number().int().positive(),
+})
 
-export type SeedVariantColor = {
-  colorSlug: string
-  images: SeedImage[]
-  /** Stock por talla; ausente ⇒ 0 */
-  stock: Record<string, number>
-}
+const seedCollectionSchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+})
 
-export type SeedProduct = {
-  slug: string
-  name: string
-  subtitle: string
-  description: string
-  line: 'CHILLOUT' | 'MITOS'
-  category: string
-  fit: 'slim' | 'regular' | 'oversize'
-  fabric: string
-  priceCop: number
-  compareAtCop?: number
-  tags: string[]
-  featured: boolean
-  colors: SeedVariantColor[]
-}
+const seedSchema = z.object({
+  colors: z.array(seedColorSchema),
+  sizes: z.array(seedSizeSchema),
+  collections: z.array(seedCollectionSchema),
+  products: z.array(seedProductSchema).min(1),
+})
 
-const HOODIE_DESC =
-  'Hoodie tejido en punto acanalado de gramaje alto. Capota doble con cordón, bolsillo canguro y puños elásticos. ' +
-  'La caída es amplia sin perder estructura: abriga sin verse rígido. Confeccionado en Colombia.'
+export const SEED = seedSchema.parse(raw)
 
-const QZ_DESC =
-  'Suéter de cuello polo con medio zip metálico y acanalado vertical fino. Escote alto que sostiene la forma, ' +
-  'mangas rectas con puño tejido y bajo elástico. Un básico de temporada que combina con sastrería o jean.'
+export const SEED_COLORS = SEED.colors
+export const SEED_SIZES = SEED.sizes
+export const SEED_PRODUCTS = SEED.products
+export const SEED_COLLECTIONS = SEED.collections
 
-const QZ_STRIPE_DESC =
-  'Suéter de cuello polo con medio zip y dos franjas en contraste sobre el pecho, tejidas en el cuerpo (no estampadas). ' +
-  'El acanalado grueso da textura visible y el contraste en crema define la silueta.'
-
-export const SEED_PRODUCTS: SeedProduct[] = [
-  {
-    slug: 'hoodie-rib',
-    name: 'Hoodie Acanalado',
-    subtitle: 'Punto grueso · Capota',
-    description: HOODIE_DESC,
-    line: 'CHILLOUT',
-    category: 'hoodies',
-    fit: 'oversize',
-    fabric: '60% algodón, 40% acrílico · 580 g/m²',
-    priceCop: 329000,
-    tags: ['Heavyweight', 'Oversize', 'Hoodies', 'Básicos'],
-    featured: true,
-    colors: [
-      {
-        colorSlug: 'naranja-quemado',
-        images: [
-          { url: '/media/products/hoodie-rib-orange-01.jpg', alt: 'Hoodie acanalado naranja quemado, vista frontal con capota y bolsillo canguro', kind: 'front' },
-          { url: '/media/products/hoodie-rib-orange-02.jpg', alt: 'Hoodie acanalado naranja quemado en modelo, detalle de puño acanalado', kind: 'editorial', isEditorial: true },
-        ],
-        stock: { s: 4, m: 2, l: 6, xl: 1 },
-      },
-      {
-        colorSlug: 'negro',
-        images: [
-          { url: '/media/products/hoodie-rib-black-01.jpg', alt: 'Hoodie acanalado negro, vista frontal con bolsillo canguro', kind: 'front' },
-          { url: '/media/products/hoodie-rib-black-02.jpg', alt: 'Hoodie acanalado negro en modelo urbano', kind: 'editorial', isEditorial: true },
-        ],
-        stock: { s: 8, m: 5, l: 3, xl: 2 },
-      },
-      {
-        colorSlug: 'verde-bosque',
-        images: [
-          { url: '/media/products/hoodie-rib-green-01.jpg', alt: 'Hoodie acanalado verde bosque, vista frontal', kind: 'front' },
-          { url: '/media/products/hoodie-rib-green-02.jpg', alt: 'Hoodie acanalado verde bosque en modelo', kind: 'editorial', isEditorial: true },
-        ],
-        stock: { s: 3, m: 4, l: 0, xl: 0 },
-      },
-    ],
-  },
-  {
-    slug: 'quarterzip-solid',
-    name: 'Suéter Cuello Polo',
-    subtitle: 'Medio zip · Acanalado fino',
-    description: QZ_DESC,
-    line: 'CHILLOUT',
-    category: 'sueteres',
-    fit: 'regular',
-    fabric: '55% algodón, 45% acrílico · 420 g/m²',
-    priceCop: 289000,
-    tags: ['Básicos', 'Suéteres', 'Cuello polo'],
-    featured: true,
-    colors: [
-      {
-        colorSlug: 'azul-marino',
-        images: [{ url: '/media/products/quarterzip-solid-navy-01.jpg', alt: 'Suéter cuello polo azul marino con medio zip, sobre perchero', kind: 'flat' }],
-        stock: { s: 5, m: 7, l: 4, xl: 2 },
-      },
-      {
-        colorSlug: 'negro',
-        images: [{ url: '/media/products/quarterzip-solid-black-01.jpg', alt: 'Suéter cuello polo negro con medio zip, sobre perchero', kind: 'flat' }],
-        stock: { s: 6, m: 3, l: 5, xl: 1 },
-      },
-      {
-        colorSlug: 'borgona',
-        images: [{ url: '/media/products/quarterzip-solid-burgundy-01.jpg', alt: 'Suéter cuello polo borgoña con medio zip, sobre perchero', kind: 'flat' }],
-        stock: { s: 2, m: 4, l: 2, xl: 0 },
-      },
-      {
-        colorSlug: 'crema',
-        images: [{ url: '/media/products/quarterzip-solid-cream-01.jpg', alt: 'Suéter cuello polo crema con medio zip dorado, sobre perchero', kind: 'flat' }],
-        stock: { s: 1, m: 2, l: 1, xl: 1 },
-      },
-    ],
-  },
-  {
-    slug: 'quarterzip-stripe',
-    name: 'Suéter Polo Franjas',
-    subtitle: 'Medio zip · Franjas tejidas',
-    description: QZ_STRIPE_DESC,
-    line: 'CHILLOUT',
-    category: 'sueteres',
-    fit: 'regular',
-    fabric: '55% algodón, 45% acrílico · 460 g/m²',
-    priceCop: 309000,
-    compareAtCop: 359000,
-    tags: ['Cuello polo', 'Suéteres', 'Básicos'],
-    featured: true,
-    colors: [
-      {
-        colorSlug: 'azul-marino',
-        images: [{ url: '/media/products/quarterzip-stripe-navy-01.jpg', alt: 'Suéter polo franjas azul marino con franjas crema, en modelo', kind: 'editorial', isEditorial: true }],
-        stock: { s: 4, m: 6, l: 3, xl: 1 },
-      },
-      {
-        colorSlug: 'verde-bosque',
-        images: [{ url: '/media/products/quarterzip-stripe-green-01.jpg', alt: 'Suéter polo franjas verde bosque con franjas crema, en modelo', kind: 'editorial', isEditorial: true }],
-        stock: { s: 3, m: 2, l: 4, xl: 2 },
-      },
-      {
-        colorSlug: 'negro',
-        images: [{ url: '/media/products/quarterzip-stripe-black-01.jpg', alt: 'Suéter polo franjas negro con franjas crema, en modelo', kind: 'editorial', isEditorial: true }],
-        stock: { s: 5, m: 4, l: 2, xl: 0 },
-      },
-      {
-        colorSlug: 'crema',
-        images: [{ url: '/media/products/quarterzip-stripe-cream-01.jpg', alt: 'Suéter polo franjas crema con franjas azul marino, en modelo', kind: 'editorial', isEditorial: true }],
-        stock: { s: 2, m: 3, l: 1, xl: 1 },
-      },
-    ],
-  },
-]
-
-export const SEED_COLLECTIONS = [
-  { slug: 'nueva-coleccion', name: 'Nueva colección', description: 'Tejidos de temporada en punto grueso.' },
-  { slug: 'mitos', name: 'Mitos', description: 'Prendas tejidas de edición continua.' },
-] as const
+export type SeedColor = z.infer<typeof seedColorSchema>
+export type SeedSize = z.infer<typeof seedSizeSchema>
+export type SeedProduct = z.infer<typeof seedProductSchema>
+export type SeedVariantColor = z.infer<typeof seedColorVariantSchema>
+export type SeedImage = z.infer<typeof seedImageSchema>
+export type SeedCollection = z.infer<typeof seedCollectionSchema>

@@ -5,13 +5,14 @@ import { getAllProductSlugs, getProductBySlug } from '@/lib/catalog'
 
 type Params = { slug: string }
 
-export function generateStaticParams(): Params[] {
-  return getAllProductSlugs().map((slug) => ({ slug }))
+export async function generateStaticParams(): Promise<Params[]> {
+  const slugs = await getAllProductSlugs()
+  return slugs.map((slug) => ({ slug }))
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   if (!product) return { title: 'Producto' }
 
   return {
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
 export default async function ProductPage({ params }: { params: Promise<Params> }) {
   const { slug } = await params
-  const product = getProductBySlug(slug)
+  const product = await getProductBySlug(slug)
   if (!product) notFound()
 
   const jsonLd = {

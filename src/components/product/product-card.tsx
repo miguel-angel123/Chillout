@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Box } from 'lucide-react'
+import { Price } from '@/components/product/price'
 import type { ProductSummaryVM } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
@@ -69,10 +70,12 @@ export function ProductCard({
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[13px] text-ink tabular-nums">{product.priceLabel}</p>
-            {product.compareAtLabel ? (
-              <p className="text-[11px] text-stone line-through tabular-nums">{product.compareAtLabel}</p>
-            ) : null}
+            <Price
+              priceLabel={product.priceLabel}
+              compareAtLabel={product.compareAtLabel}
+              size="sm"
+              className="justify-end"
+            />
           </div>
         </div>
 
