@@ -2,8 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { ArrowRight, MessageCircle } from 'lucide-react'
+import { ArrowRight, Loader2, MessageCircle } from 'lucide-react'
 import { cartTotal, useCart } from '@/lib/cart/store'
 import { SITE, waLink } from '@/lib/brand'
 import { formatCop } from '@/lib/format'
@@ -17,9 +18,48 @@ import { formatCop } from '@/lib/format'
  */
 export default function CheckoutPage() {
   const { items, clear } = useCart()
+  const router = useRouter()
   const [form, setForm] = useState({ name: '', phone: '', city: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const total = cartTotal(items)
+
+  async function submitOrder() {
+    if (submitting) return
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            slug: item.slug,
+            colorSlug: item.colorSlug,
+            size: item.size,
+            qty: item.qty,
+          })),
+          customer: { name: form.name, phone: form.phone, city: form.city },
+        }),
+      })
+
+      const data = (await response.json()) as { url?: string; error?: string }
+
+      if (!response.ok || !data.url) {
+        setError(data.error ?? 'No se pudo registrar el pedido')
+        setSubmitting(false)
+        return
+      }
+
+      clear()
+      router.push(data.url)
+    } catch {
+      setError('Error de red al registrar el pedido')
+      setSubmitting(false)
+    }
+  }
 
   const message = [
     'Hola CHILLOUT, quiero confirmar este pedido:',
@@ -128,20 +168,48 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {error ? (
+            <p
+              role="alert"
+              className="mt-6 border border-copper/40 bg-copper/5 px-3 py-2.5 text-[11px] leading-relaxed text-copper-deep"
+            >
+              {error}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={submitOrder}
+            disabled={submitting || form.name.trim().length < 2 || form.phone.trim().length < 7}
+            className="sheen mt-6 flex w-full items-center justify-center gap-2.5 bg-ink py-4 text-[11px] tracking-[0.22em] text-paper uppercase transition-colors hover:bg-copper disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" strokeWidth={2} />
+                Registrando pedido…
+              </>
+            ) : (
+              <>
+                Confirmar pedido
+                <ArrowRight className="size-4" strokeWidth={1.7} />
+              </>
+            )}
+          </button>
+
           <a
             href={waLink(message)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={clear}
-            className="sheen mt-6 flex w-full items-center justify-center gap-2.5 bg-ink py-4 text-[11px] tracking-[0.22em] text-paper uppercase transition-colors hover:bg-copper"
+            className="mt-3 flex w-full items-center justify-center gap-2.5 border border-ink/20 py-3.5 text-[10px] tracking-[0.2em] text-ink uppercase transition-colors hover:border-ink"
           >
-            <MessageCircle className="size-4" strokeWidth={1.7} />
-            Confirmar pedido por WhatsApp
+            <MessageCircle className="size-3.5" strokeWidth={1.7} />
+            Prefiero cerrarlo por WhatsApp
           </a>
 
           <p className="mt-4 border border-ink/10 bg-paper-dim px-3 py-2.5 text-[10px] leading-relaxed text-stone-dark">
-            El pago en línea con tarjeta, PSE y Nequi (Wompi) se activa cuando la cuenta de comercio
-            esté aprobada. Por ahora el pedido se cierra por WhatsApp al {SITE.whatsapp}.
+            El pedido queda registrado con un código y un enlace de seguimiento. El pago en línea con
+            tarjeta, PSE y Nequi (Wompi) se activa cuando la cuenta de comercio esté aprobada; por
+            ahora lo confirmamos por WhatsApp al {SITE.whatsapp}.
           </p>
 
           <Link

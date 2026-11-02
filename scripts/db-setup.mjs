@@ -36,6 +36,7 @@ const ENUMS = {
   media_kind: ['front', 'back', 'detail', 'editorial', 'flat', 'turnaround'],
   model3d_status: ['pending', 'processing', 'ready', 'failed', 'quarantined'],
   model3d_route: ['procedural', 'generative', 'relief_2_5d'],
+  order_status: ['pending', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'],
 }
 
 async function ensureEnums() {
@@ -159,6 +160,47 @@ const TABLES = [
     sort_order integer NOT NULL DEFAULT 0,
     PRIMARY KEY (collection_id, product_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS orders (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    code text NOT NULL,
+    token text NOT NULL,
+    status order_status NOT NULL DEFAULT 'pending',
+    customer_name text NOT NULL,
+    customer_phone text NOT NULL,
+    customer_email text,
+    city text,
+    address text,
+    notes text,
+    subtotal_cop integer NOT NULL,
+    shipping_cop integer NOT NULL DEFAULT 0,
+    total_cop integer NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT orders_code_key UNIQUE (code),
+    CONSTRAINT orders_token_key UNIQUE (token)
+  )`,
+  `CREATE INDEX IF NOT EXISTS orders_status_idx ON orders (status)`,
+  `CREATE TABLE IF NOT EXISTS order_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id uuid NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
+    product_slug text NOT NULL,
+    variant_id uuid,
+    name text NOT NULL,
+    color_name text NOT NULL,
+    size text NOT NULL,
+    qty integer NOT NULL,
+    unit_price_cop integer NOT NULL,
+    line_total_cop integer NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS order_items_order_idx ON order_items (order_id)`,
+  `CREATE TABLE IF NOT EXISTS order_events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id uuid NOT NULL REFERENCES orders (id) ON DELETE CASCADE,
+    status order_status NOT NULL,
+    message text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS order_events_order_idx ON order_events (order_id)`
 ]
 
 async function ensureTables() {

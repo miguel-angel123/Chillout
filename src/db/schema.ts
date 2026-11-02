@@ -240,6 +240,96 @@ export const collectionProductsRelations = relations(collectionProducts, ({ one 
   product: one(products, { fields: [collectionProducts.productId], references: [products.id] }),
 }))
 
+/* ── Pedidos ───────────────────────────────────────────────── */
+
+export const orderStatus = pgEnum('order_status', [
+  'pending',
+  'confirmed',
+  'packed',
+  'shipped',
+  'delivered',
+  'cancelled',
+])
+
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Código legible para el cliente, p. ej. CHL-2601-0042 */
+    code: text('code').notNull(),
+    /** Enlace privado de seguimiento, sin datos personales en la URL. */
+    token: text('token').notNull(),
+    status: orderStatus('status').notNull().default('pending'),
+
+    customerName: text('customer_name').notNull(),
+    customerPhone: text('customer_phone').notNull(),
+    customerEmail: text('customer_email'),
+    city: text('city'),
+    address: text('address'),
+    notes: text('notes'),
+
+    /** Valores recalculados en servidor; el cliente nunca define el total. */
+    subtotalCop: integer('subtotal_cop').notNull(),
+    shippingCop: integer('shipping_cop').notNull().default(0),
+    totalCop: integer('total_cop').notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('orders_code_key').on(t.code),
+    unique('orders_token_key').on(t.token),
+    index('orders_status_idx').on(t.status),
+  ],
+)
+
+export const orderItems = pgTable(
+  'order_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    productSlug: text('product_slug').notNull(),
+    variantId: uuid('variant_id'),
+    name: text('name').notNull(),
+    colorName: text('color_name').notNull(),
+    size: text('size').notNull(),
+    qty: integer('qty').notNull(),
+    /** Precio congelado al momento de la compra. */
+    unitPriceCop: integer('unit_price_cop').notNull(),
+    lineTotalCop: integer('line_total_cop').notNull(),
+  },
+  (t) => [index('order_items_order_idx').on(t.orderId)],
+)
+
+export const orderEvents = pgTable(
+  'order_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orderId: uuid('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    status: orderStatus('status').notNull(),
+    message: text('message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('order_events_order_idx').on(t.orderId)],
+)
+
+export const ordersRelations = relations(orders, ({ many }) => ({
+  items: many(orderItems),
+  events: many(orderEvents),
+}))
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
+}))
+
+export const orderEventsRelations = relations(orderEvents, ({ one }) => ({
+  order: one(orders, { fields: [orderEvents.orderId], references: [orders.id] }),
+}))
+
 /* ── Tipos inferidos ───────────────────────────────────────── */
 
 export type Product = typeof products.$inferSelect
@@ -249,3 +339,6 @@ export type Color = typeof colors.$inferSelect
 export type Size = typeof sizes.$inferSelect
 export type Collection = typeof collections.$inferSelect
 export type Model3d = typeof models3d.$inferSelect
+export type Order = typeof orders.$inferSelect
+export type OrderItem = typeof orderItems.$inferSelect
+export type OrderEvent = typeof orderEvents.$inferSelect
