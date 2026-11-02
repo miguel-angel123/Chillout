@@ -19,7 +19,7 @@ import { formatCop } from '@/lib/format'
 export default function CheckoutPage() {
   const { items, clear } = useCart()
   const router = useRouter()
-  const [form, setForm] = useState({ name: '', phone: '', city: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', city: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,7 +41,7 @@ export default function CheckoutPage() {
             size: item.size,
             qty: item.qty,
           })),
-          customer: { name: form.name, phone: form.phone, city: form.city },
+          customer: { name: form.name, phone: form.phone, email: form.email, city: form.city },
         }),
       })
 
@@ -166,6 +166,20 @@ export default function CheckoutPage() {
                 />
               </label>
             </div>
+
+            <label className="block">
+              <span className="text-[10px] tracking-[0.22em] text-stone uppercase">
+                Correo (para tu comprobante)
+              </span>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="mt-2 w-full border border-ink/20 px-3 py-2.5 text-sm outline-none focus:border-ink"
+                placeholder="tu@correo.com"
+                inputMode="email"
+              />
+            </label>
           </div>
 
           {error ? (

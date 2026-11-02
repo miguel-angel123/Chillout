@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { eq } from 'drizzle-orm'
+import { getDb, schema } from '@/db/client'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 import { ORDER_STATUS_LABELS, updateOrderStatus, type OrderStatus } from '@/lib/orders'
+import { orderStatusEmail, sendEmail } from '@/lib/notifications/email'
 
 export const runtime = 'nodejs'
 
@@ -22,7 +25,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   }
 
+  const db = getDb()
+  const [order] = await db.select().from(schema.orders).where(eq(schema.orders.id, id)).limit(1)
+
   await updateOrderStatus(id, status as OrderStatus)
+
+  // Aviso al cliente solo si dejó correo.
+  if (order?.customerEmail) {
+    try {
+      const template = orderStatusEmail({
+        code: order.code,
+        statusLabel: ORDER_STATUS_LABELS[status as OrderStatus]!,
+        orderUrl: `${new URL(request.url).origin}/pedido/${order.token}`,
+      })
+      await sendEmail({ ...template, to: order.customerEmail })
+    } catch (mailError) {
+      console.warn('[orders] aviso de estado no enviado:', (mailError as Error).message)
+    }
+  }
 
   return NextResponse.redirect(new URL('/admin/pedidos', request.url), { status: 303 })
 }

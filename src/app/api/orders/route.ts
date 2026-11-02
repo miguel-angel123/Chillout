@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, schema } from '@/db/client'
+import { orderConfirmationEmail, sendEmail } from '@/lib/notifications/email'
 
 export const runtime = 'nodejs'
 
@@ -191,6 +192,32 @@ export async function POST(request: Request) {
       status: 'pending',
       message: 'Pedido recibido. Te contactamos para confirmar el pago y el envío.',
     })
+
+    // El correo no puede tumbar el pedido: si falla, solo se registra.
+    if (customer.email) {
+      try {
+        const origin = new URL(request.url).origin
+        const template = orderConfirmationEmail({
+          code,
+          customerName: customer.name,
+          items: resolved.map((line) => ({
+            name: line.name,
+            colorName: line.colorName,
+            size: line.size,
+            qty: line.qty,
+            lineTotalCop: line.unitPriceCop * line.qty,
+          })),
+          subtotalCop: subtotal,
+          shippingCop: shipping,
+          totalCop: total,
+          orderUrl: `${origin}/pedido/${token}`,
+        })
+
+        await sendEmail({ ...template, to: customer.email })
+      } catch (mailError) {
+        console.warn('[orders] confirmación no enviada:', (mailError as Error).message)
+      }
+    }
   } catch (error) {
     console.error('[orders] no se pudo registrar:', error)
     return NextResponse.json(
