@@ -9,8 +9,15 @@ nodeLinker: hoisted
 
 # @imgly/background-removal-node trae un `sharp` anidado cuya compilación nativa
 # falla en este entorno. Se fuerza una sola versión, la que ya funciona.
+#
+# onnxruntime-node: @imgly incluye la 1.17 y @huggingface/transformers la 1.31.
+# Node solo puede cargar un binario nativo (el primero gana), así que si conviven
+# el segundo revienta con "requested API version [30] is not available".
+# Se unifica en la versión moderna.
 overrides:
   sharp: ^0.35.5
+  onnxruntime-node: 1.31.1
+  onnxruntime-common: 1.31.1
 
 # pnpm 11 bloquea los scripts de instalación por seguridad. Estas son las
 # únicas dependencias que necesitan binarios nativos:

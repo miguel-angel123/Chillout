@@ -1,21 +1,33 @@
 /**
  * Rutas de los recursos que alimentan el visor 3D.
  *
- *   foto      /media/products/hoodie-rib-orange-01.jpg
- *   recorte   /media/cutouts/hoodie-rib-orange-01.png   (con transparencia)
- *   profundidad /media/depth/hoodie-rib-orange-01.png   (mapa de grises)
+ * Conviven dos prefijos:
+ *   · /media/...      activos fijos incluidos en el build (catálogo semilla)
+ *   · /api/media/...  activos que el pipeline genera en caliente (3D Studio)
  *
- * El pipeline de subida persiste los tres; esta convención los mantiene
- * sincronizados con la fotografía original.
+ * Ambos comparten la misma estructura; solo cambia el segmento de carpeta.
  */
 
-export function cutoutUrl(photoUrl: string): string | null {
-  if (!photoUrl.startsWith('/media/products/')) return null
-  return photoUrl.replace('/media/products/', '/media/cutouts/').replace(/\.jpe?g$/i, '.png')
+const PREFIXES = ['/api/media', '/media'] as const
+
+type Folder = 'products' | 'cutouts' | 'depth'
+
+function resolve(photoUrl: string, target: Folder): string | null {
+  for (const prefix of PREFIXES) {
+    const source = `${prefix}/products/`
+    if (photoUrl.startsWith(source)) {
+      return photoUrl.replace(source, `${prefix}/${target}/`).replace(/\.jpe?g$/i, '.png')
+    }
+  }
+  return null
 }
 
+/** Recorte con transparencia que usa el visor. */
+export function cutoutUrl(photoUrl: string): string | null {
+  return resolve(photoUrl, 'cutouts')
+}
+
+/** Mapa de profundidad que da volumen al modelo. */
 export function depthUrl(photoUrl: string): string | null {
-  const cutout = cutoutUrl(photoUrl)
-  if (!cutout) return null
-  return cutout.replace('/media/cutouts/', '/media/depth/')
+  return resolve(photoUrl, 'depth')
 }

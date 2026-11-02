@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Bodoni_Moda, Inter } from 'next/font/google'
 import './globals.css'
-import { Footer } from '@/components/site/footer'
-import { Header } from '@/components/site/header'
 import { SITE } from '@/lib/brand'
 
 const inter = Inter({
@@ -42,17 +40,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-CO" className={`${inter.variable} ${bodoni.variable}`}>
-      <body className="min-h-dvh antialiased">
-        <a
-          href="#contenido"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"
-        >
-          Saltar al contenido
-        </a>
-        <Header />
-        <main id="contenido">{children}</main>
-        <Footer />
-      </body>
+      <body className="min-h-dvh antialiased">{children}</body>
     </html>
   )
 }

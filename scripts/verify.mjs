@@ -62,7 +62,7 @@ const checks = {
   'talla L': pdp.includes('>L<'),
   'talla XL': pdp.includes('>XL<'),
   'stock crítico': pdp.includes('Solo queda'),
-  'vista 3D': pdp.includes('Vista 3D'),
+  'botón 3D': pdp.includes('Abrir en 3D') || pdp.includes('Ver en 3D'),
   'JSON-LD': pdp.includes('application/ld+json'),
 }
 
