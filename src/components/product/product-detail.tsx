@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react'
 import { Box, Camera, Check, Minus, Plus } from 'lucide-react'
 import { Price } from '@/components/product/price'
 import type { ProductDetailVM } from '@/lib/catalog'
-import { cutoutUrl, depthUrl } from '@/lib/3d/paths'
+import { backCutoutUrl, cutoutUrl, depthUrl } from '@/lib/3d/paths'
 import { cn } from '@/lib/utils'
 
 // El visor usa WebGL y window: solo existe en el cliente.
@@ -44,6 +44,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const activeImage = images[imageIndex] ?? images[0]
   const modelUrl = activeImage ? cutoutUrl(activeImage.url) : null
   const modelDepthUrl = activeImage ? depthUrl(activeImage.url) : null
+  const modelBackUrl = activeImage ? backCutoutUrl(activeImage.url) : null
   const inStockSizes = new Set(color?.sizesAvailable ?? [])
   const selectedSizeInStock = sizeSlug ? inStockSizes.has(sizeSlug.toUpperCase()) : false
 
@@ -95,6 +96,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
           <ProductViewer
             imageUrl={modelUrl}
             depthUrl={modelDepthUrl}
+            backImageUrl={modelBackUrl}
             label={`Vista 3D de ${product.name}`}
           />
         ) : (

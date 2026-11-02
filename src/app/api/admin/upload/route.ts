@@ -76,11 +76,18 @@ export async function POST(request: Request) {
     slug = `${base}-${attempt}`
   }
 
-  // ── Pipeline: original → recorte → profundidad ────────────
+  // ── Pipeline: prenda aislada + profundidad por vista ──────
   let result
   try {
-    const buffer = Buffer.from(await file.arrayBuffer())
-    result = await runPhotoPipeline(buffer, { slug })
+    const front = Buffer.from(await file.arrayBuffer())
+
+    const backFile = form.get('fileBack')
+    const sideFile = form.get('fileSide')
+
+    const back = backFile instanceof File ? Buffer.from(await backFile.arrayBuffer()) : undefined
+    const side = sideFile instanceof File ? Buffer.from(await sideFile.arrayBuffer()) : undefined
+
+    result = await runPhotoPipeline({ front, back, side }, { slug })
   } catch (error) {
     console.error('[admin/upload] pipeline falló:', error)
     return NextResponse.json(
@@ -140,6 +147,19 @@ export async function POST(request: Request) {
       isEditorial: false,
     })
 
+    // Vista trasera real: es la que hace que el 3D no sea simétrico.
+    if (result.backPhotoUrl) {
+      await db.insert(schema.productMedia).values({
+        productId: product.id,
+        colorId: color.id,
+        kind: 'back',
+        url: result.backPhotoUrl,
+        alt: `${name}, vista trasera`,
+        sortOrder: 1,
+        isEditorial: false,
+      })
+    }
+
     // Un modelo 3D listo por producto/color
     await db.insert(schema.models3d).values({
       productId: product.id,
@@ -162,6 +182,8 @@ export async function POST(request: Request) {
       assets: {
         photo: result.photoUrl,
         cutout: result.cutoutUrl,
+        backCutout: result.backCutoutUrl,
+        sideCutout: result.sideCutoutUrl,
         depth: result.depthUrl,
       },
       timings: result.timings,

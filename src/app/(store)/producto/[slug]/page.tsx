@@ -1,14 +1,13 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { ProductDetail } from '@/components/product/product-detail'
-import { getAllProductSlugs, getProductBySlug } from '@/lib/catalog'
+import { getProductBySlug } from '@/lib/catalog'
 
 type Params = { slug: string }
 
-export async function generateStaticParams(): Promise<Params[]> {
-  const slugs = await getAllProductSlugs()
-  return slugs.map((slug) => ({ slug }))
-}
+// La ficha se renderiza por petición: el gerente publica prendas nuevas en
+// caliente y el catálogo no puede quedar congelado en el build.
+export const dynamic = 'force-dynamic'
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { slug } = await params

@@ -30,48 +30,42 @@ function loadTexture(url: string): Promise<THREE.Texture | null> {
 
 type Built = {
   photo: THREE.Texture
+  backPhoto: THREE.Texture | null
   volume: VolumeResult
 }
 
 /**
- * Gancho de percha: madera clara y alambre metálico. La barra inferior queda
- * oculta dentro de los hombros de la prenda, así se lee como colgada.
+ * Percha de alambre: gancho metálico, dos varas finas y travesaño inferior.
+ * El travesaño queda oculto dentro de los hombros, así se lee como colgada.
  */
 function Hanger({ y = 0.44 }: { y?: number }) {
-  const wood = '#d8b98d'
-  const metal = '#c4c8ce'
+  const wire = '#c9ccd1'
   const arm = 0.36
   const angle = 0.588 // 33.69°
 
   return (
     // Ligeramente detrás del plano delantero: las varas quedan tras el cuello.
     <group position={[0, y, -0.07]}>
-      {/* gancho */}
       <mesh position={[0, 0.168, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.028, 0.0048, 8, 26, Math.PI * 1.55]} />
-        <meshStandardMaterial color={metal} metalness={0.95} roughness={0.22} />
+        <torusGeometry args={[0.026, 0.0038, 8, 26, Math.PI * 1.55]} />
+        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
       </mesh>
       <mesh position={[0, 0.105, 0]}>
-        <cylinderGeometry args={[0.0048, 0.0048, 0.09, 8]} />
-        <meshStandardMaterial color={metal} metalness={0.95} roughness={0.22} />
+        <cylinderGeometry args={[0.0038, 0.0038, 0.09, 8]} />
+        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
       </mesh>
 
-      {/* cuerpo de madera */}
-      <mesh position={[0, 0.04, 0]}>
-        <cylinderGeometry args={[0.009, 0.009, 0.05, 8]} />
-        <meshStandardMaterial color={wood} roughness={0.72} />
-      </mesh>
       <mesh position={[-0.15, -0.1, 0]} rotation={[0, 0, angle]}>
-        <boxGeometry args={[arm, 0.014, 0.014]} />
-        <meshStandardMaterial color={wood} roughness={0.72} />
+        <boxGeometry args={[arm, 0.008, 0.008]} />
+        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
       </mesh>
       <mesh position={[0.15, -0.1, 0]} rotation={[0, 0, -angle]}>
-        <boxGeometry args={[arm, 0.014, 0.014]} />
-        <meshStandardMaterial color={wood} roughness={0.72} />
+        <boxGeometry args={[arm, 0.008, 0.008]} />
+        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
       </mesh>
       <mesh position={[0, -0.2, 0]}>
-        <boxGeometry args={[0.6, 0.014, 0.014]} />
-        <meshStandardMaterial color={wood} roughness={0.72} />
+        <boxGeometry args={[0.6, 0.008, 0.008]} />
+        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
       </mesh>
     </group>
   )
@@ -80,10 +74,12 @@ function Hanger({ y = 0.44 }: { y?: number }) {
 function GarmentModel({
   photoUrl,
   depthUrl,
+  backImageUrl,
   onReady,
 }: {
   photoUrl: string
   depthUrl: string | null
+  backImageUrl?: string | null
   onReady?: () => void
 }) {
   const [built, setBuilt] = useState<Built | null>(null)
@@ -94,17 +90,19 @@ function GarmentModel({
     let created: Built | null = null
 
     void (async () => {
-      const [photo, depth] = await Promise.all([
+      const [photo, depth, back] = await Promise.all([
         loadTexture(photoUrl),
         depthUrl ? loadTexture(depthUrl) : Promise.resolve(null),
+        backImageUrl ? loadTexture(backImageUrl) : Promise.resolve(null),
       ])
       if (!alive || !photo || !photo.image) return
 
       const volume = buildVolumeGeometry(
         photo.image as HTMLImageElement,
         (depth?.image as HTMLImageElement | undefined) ?? null,
+        (back?.image as HTMLImageElement | undefined) ?? null,
       )
-      created = { photo, volume }
+      created = { photo, backPhoto: back, volume }
       setBuilt(created)
       onReady?.()
     })()
@@ -115,6 +113,7 @@ function GarmentModel({
         created.volume.front.dispose()
         created.volume.back.dispose()
         created.photo.dispose()
+        created.backPhoto?.dispose()
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,12 +143,13 @@ function GarmentModel({
         <meshStandardMaterial map={built.photo} roughness={0.95} metalness={0.02} alphaTest={0.4} />
       </mesh>
 
-      {/* Revés: misma prenda, cerrada, ligeramente más apagada */}
+      {/* Revés: si hay foto trasera real se usa tal cual; si no, la delantera
+          reflejada (el UV ya viene invertido en la capa trasera). */}
       <mesh geometry={built.volume.back}>
         <meshStandardMaterial
-          map={built.photo}
-          color="#cfc8bd"
-          roughness={0.98}
+          map={built.backPhoto ?? built.photo}
+          color={built.backPhoto ? '#ffffff' : '#cfc8bd'}
+          roughness={0.97}
           metalness={0.0}
           alphaTest={0.4}
         />
@@ -161,11 +161,14 @@ function GarmentModel({
 export function ProductViewer({
   imageUrl,
   depthUrl,
+  backImageUrl,
   label,
   className,
 }: {
   imageUrl: string
   depthUrl?: string | null
+  /** Vista trasera real; si falta, el revés usa la delantera reflejada. */
+  backImageUrl?: string | null
   label: string
   className?: string
 }) {
@@ -188,7 +191,12 @@ export function ProductViewer({
         style={{ touchAction: 'pan-y' }}
       >
         <Suspense fallback={null}>
-          <GarmentModel photoUrl={imageUrl} depthUrl={depthUrl ?? null} onReady={() => setReady(true)} />
+          <GarmentModel
+            photoUrl={imageUrl}
+            depthUrl={depthUrl ?? null}
+            backImageUrl={backImageUrl ?? null}
+            onReady={() => setReady(true)}
+          />
         </Suspense>
 
         <OrbitControls

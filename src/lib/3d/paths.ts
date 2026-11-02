@@ -31,3 +31,10 @@ export function cutoutUrl(photoUrl: string): string | null {
 export function depthUrl(photoUrl: string): string | null {
   return resolve(photoUrl, 'depth')
 }
+
+/** Recorte de la vista trasera, si el gerente la subió. */
+export function backCutoutUrl(photoUrl: string): string | null {
+  const front = resolve(photoUrl, 'cutouts')
+  if (!front) return null
+  return front.replace(/\.png$/i, '-back.png')
+}

@@ -176,14 +176,18 @@ function smooth(source: Float32Array, w: number, h: number, radius: number): Flo
 export function buildVolumeGeometry(
   image: HTMLImageElement | ImageBitmap,
   depthImage: HTMLImageElement | ImageBitmap | null,
+  backImage: HTMLImageElement | ImageBitmap | null = null,
   options: VolumeOptions = {},
 ): VolumeResult {
   const { gridW, gridH, maxDepth, backRatio, alphaCutoff, depthSmoothing } = { ...DEFAULTS, ...options }
 
-  const { alpha } = drawToGrid(image, gridW, gridH)
+  const { alpha: alphaFront } = drawToGrid(image, gridW, gridH)
+  // Con foto trasera se usa su propio alfa: si no, ambos cascos compartirían
+  // silueta y el material trasero se recortaría con el contorno equivocado.
+  const { alpha: alphaBack } = backImage ? drawToGrid(backImage, gridW, gridH) : { alpha: alphaFront }
 
-  // Perfil de cierre: 1 en el interior, 0 exactamente en la silueta.
-  const rim = distanceTransform(alpha, gridW, gridH, alphaCutoff)
+  const rimFront = distanceTransform(alphaFront, gridW, gridH, alphaCutoff)
+  const rimBack = backImage ? distanceTransform(alphaBack, gridW, gridH, alphaCutoff) : rimFront
 
   // Campo de forma: profundidad aprendida si existe, si no el propio perfil.
   let shape: Float32Array
@@ -191,11 +195,10 @@ export function buildVolumeGeometry(
     const raw = drawDepthToGrid(depthImage, gridW, gridH)
     const smoothed = smooth(raw, gridW, gridH, depthSmoothing)
 
-    // Normaliza solo dentro de la prenda para no arrastrar el fondo.
     let min = Infinity
     let max = -Infinity
     for (let i = 0; i < smoothed.length; i += 1) {
-      if (alpha[i]! < alphaCutoff) continue
+      if (alphaFront[i]! < alphaCutoff) continue
       if (smoothed[i]! < min) min = smoothed[i]!
       if (smoothed[i]! > max) max = smoothed[i]!
     }
@@ -207,23 +210,39 @@ export function buildVolumeGeometry(
       shape[i] = Math.max(0, Math.min(1, normalized))
     }
   } else {
-    shape = rim.slice()
+    shape = rimFront.slice()
   }
 
   // Cierre del contorno: sin esto, frente y revés no se encontrarían.
   const closeRamp = 0.18
-  const depth = new Float32Array(shape.length)
-  for (let i = 0; i < depth.length; i += 1) {
-    const closure = Math.min(1, rim[i]! / closeRamp)
-    const gradient = closure * closure * (3 - 2 * closure) // smoothstep
-    depth[i] = shape[i]! * gradient
+  const closureFrom = (rim: Float32Array) => {
+    const out = new Float32Array(rim.length)
+    for (let i = 0; i < rim.length; i += 1) {
+      const t = Math.min(1, rim[i]! / closeRamp)
+      out[i] = t * t * (3 - 2 * t) // smoothstep
+    }
+    return out
+  }
+
+  const closeFront = closureFrom(rimFront)
+  const closeBack = closureFrom(rimBack)
+
+  const depthFront = new Float32Array(shape.length)
+  const depthBack = new Float32Array(shape.length)
+  for (let i = 0; i < shape.length; i += 1) {
+    depthFront[i] = shape[i]! * closeFront[i]!
+    depthBack[i] = (backImage ? rimBack[i]! : shape[i]!) * closeBack[i]!
   }
 
   const aspect = image.width / image.height
   const height = 1
   const width = height * aspect
 
-  function buildLayer(sign: 1 | -1): THREE.BufferGeometry {
+  function buildLayer(
+    sign: 1 | -1,
+    alpha: Float32Array,
+    depth: Float32Array,
+  ): THREE.BufferGeometry {
     const positions = new Float32Array(gridW * gridH * 3)
     const uvs = new Float32Array(gridW * gridH * 2)
 
@@ -237,7 +256,8 @@ export function buildVolumeGeometry(
         positions[i * 3 + 1] = (0.5 - v) * height
         positions[i * 3 + 2] = depth[i]! * maxDepth * (sign === 1 ? 1 : -backRatio)
 
-        // El revés ve la textura reflejada: se lee como la cara interna.
+        // La capa trasera ve la textura reflejada: al mirar desde -Z, +X queda
+        // a la izquierda, así que u se invierte para que la foto encaje.
         uvs[i * 2] = sign === 1 ? u : 1 - u
         uvs[i * 2 + 1] = 1 - v
       }
@@ -254,7 +274,6 @@ export function buildVolumeGeometry(
         const touches = alpha[a]! > 0.04 || alpha[b]! > 0.04 || alpha[c]! > 0.04 || alpha[d]! > 0.04
         if (!touches) continue
 
-        // Winding opuesto para que cada capa mire hacia fuera.
         if (sign === 1) indices.push(a, c, b, b, c, d)
         else indices.push(a, b, c, b, d, c)
       }
@@ -269,5 +288,9 @@ export function buildVolumeGeometry(
     return geometry
   }
 
-  return { front: buildLayer(1), back: buildLayer(-1), aspect }
+  return {
+    front: buildLayer(1, alphaFront, depthFront),
+    back: buildLayer(-1, alphaBack, depthBack),
+    aspect,
+  }
 }

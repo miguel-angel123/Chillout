@@ -1,28 +1,38 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
+import { isolateGarment } from '@/lib/3d/segment-garment'
 
 /**
- * Pipeline de una foto de prenda → activos del visor 3D.
+ * Pipeline foto → activos del visor 3D.
  *
- *   1. Normaliza la fotografía original (sRGB, sin EXIF, lado mayor 2000 px).
- *   2. Recorta la prenda con matting (ONNX local, sin claves).
- *   3. Estima el mapa de profundidad con Depth Anything V2 (ONNX local).
+ * Recibe las vistas que envía el gerente y produce, para cada una, la prenda
+ * aislada con transparencia; además calcula el mapa de profundidad del frente,
+ * que es el que da volumen a la malla.
  *
- * Todo corre en el propio proceso de Node: sin servicios externos, sin costo
- * por llamada y sin GPU. El resultado son los tres archivos que consume el
- * visor: original, recorte con alfa y mapa de profundidad.
+ * Con la vista trasera real el modelo deja de ser simétrico: el revés se
+ * texturiza con la fotografía auténtica de la espalda.
  */
 
-export type PipelineStage = 'ingest' | 'matte' | 'depth' | 'done'
+export type PipelineViews = {
+  front: Buffer
+  back?: Buffer
+  side?: Buffer
+}
+
+export type PipelineStage = 'ingest' | 'garment' | 'depth' | 'done'
 
 export type PipelineResult = {
   slug: string
   photoUrl: string
   cutoutUrl: string
+  backPhotoUrl: string | null
+  backCutoutUrl: string | null
+  sideCutoutUrl: string | null
   depthUrl: string
   width: number
   height: number
+  coverage: number
   timings: Partial<Record<PipelineStage, number>>
 }
 
@@ -30,7 +40,6 @@ const MEDIA_ROOT = 'public/media'
 const MAX_EDGE = 2000
 const DEPTH_MODEL = 'onnx-community/depth-anything-v2-small'
 
-/** El modelo se carga una sola vez por proceso (0,5 s las siguientes veces). */
 let depthEstimator: Promise<unknown> | null = null
 
 async function getDepthEstimator() {
@@ -61,53 +70,32 @@ export function slugify(input: string): string {
     .slice(0, 60)
 }
 
-export async function runPhotoPipeline(
-  input: Buffer,
-  options: { slug: string; onStage?: (stage: PipelineStage) => void },
-): Promise<PipelineResult> {
-  const { slug, onStage } = options
-  const timings: Partial<Record<PipelineStage, number>> = {}
-  const mark = (stage: PipelineStage, started: number) => {
-    timings[stage] = Date.now() - started
-  }
-
-  await ensureDirs()
-
-  // ── 1. Ingesta ────────────────────────────────────────────
-  onStage?.('ingest')
-  let t = Date.now()
-  const photoName = `${slug}.jpg`
-  const photoPath = join(MEDIA_ROOT, 'products', photoName)
-
-  const normalized = await sharp(input)
+async function normalize(input: Buffer, targetPath: string) {
+  const buffer = await sharp(input)
     .rotate()
     .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: 'inside', withoutEnlargement: true })
     .toColorspace('srgb')
     .jpeg({ quality: 90, mozjpeg: true, progressive: true })
     .toBuffer()
+  await writeFile(targetPath, buffer)
+  return buffer
+}
 
-  await writeFile(photoPath, normalized)
-  mark('ingest', t)
+/** Aísla la prenda; si el parser falla, cae al matting simple. */
+async function cutoutFrom(normalizedJpeg: Buffer): Promise<Buffer> {
+  try {
+    const garment = await isolateGarment(normalizedJpeg, true)
+    return garment.png
+  } catch (error) {
+    console.warn('[pipeline] aislamiento de prenda falló, uso matting simple:', (error as Error).message)
+    const { removeBackground } = await import('@imgly/background-removal-node')
+    const blob = new Blob([new Uint8Array(normalizedJpeg)], { type: 'image/jpeg' })
+    const matte = await removeBackground(blob, { model: 'medium', output: { format: 'image/png' } })
+    return sharp(Buffer.from(await matte.arrayBuffer())).trim({ threshold: 1 }).png().toBuffer()
+  }
+}
 
-  // ── 2. Recorte de la prenda ───────────────────────────────
-  onStage?.('matte')
-  t = Date.now()
-  const { removeBackground } = await import('@imgly/background-removal-node')
-  const matted = await removeBackground(photoPath, { model: 'medium', output: { format: 'image/png' } })
-
-  const cutoutName = `${slug}.png`
-  const cutoutPath = join(MEDIA_ROOT, 'cutouts', cutoutName)
-
-  const cutoutInfo = await sharp(Buffer.from(await matted.arrayBuffer()))
-    .trim({ threshold: 1 })
-    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-    .png({ compressionLevel: 9 })
-    .toFile(cutoutPath)
-  mark('matte', t)
-
-  // ── 3. Profundidad ────────────────────────────────────────
-  onStage?.('depth')
-  t = Date.now()
+async function depthMap(cutoutPath: string, targetPath: string) {
   const estimator = (await getDepthEstimator()) as (input: string) => Promise<{
     depth?: { data: Float32Array; width: number; height: number }
   }>
@@ -118,7 +106,6 @@ export async function runPhotoPipeline(
 
   const { data, width, height } = map
   const pixels = Buffer.alloc(width * height)
-
   let min = Infinity
   let max = -Infinity
   for (let i = 0; i < width * height; i += 1) {
@@ -131,23 +118,76 @@ export async function runPhotoPipeline(
     pixels[i] = Math.round(((data[i]! - min) / span) * 255)
   }
 
-  const depthPath = join(MEDIA_ROOT, 'depth', cutoutName)
   await sharp(pixels, { raw: { width, height, channels: 1 } })
     .png({ compressionLevel: 9 })
-    .toFile(depthPath)
-  mark('depth', t)
+    .toFile(targetPath)
+}
 
-  onStage?.('done')
+export async function runPhotoPipeline(
+  views: PipelineViews,
+  options: { slug: string },
+): Promise<PipelineResult> {
+  const { slug } = options
+  const timings: Partial<Record<PipelineStage, number>> = {}
+  await ensureDirs()
+
+  // ── 1. Ingesta ────────────────────────────────────────────
+  let t = Date.now()
+  const frontName = `${slug}.jpg`
+  const frontJpeg = await normalize(views.front, join(MEDIA_ROOT, 'products', frontName))
+
+  let backName: string | null = null
+  let backJpeg: Buffer | null = null
+  if (views.back) {
+    backName = `${slug}-back.jpg`
+    backJpeg = await normalize(views.back, join(MEDIA_ROOT, 'products', backName))
+  }
+
+  if (views.side) {
+    await normalize(views.side, join(MEDIA_ROOT, 'products', `${slug}-side.jpg`))
+  }
+  timings.ingest = Date.now() - t
+
+  // ── 2. Prenda aislada ─────────────────────────────────────
+  t = Date.now()
+  const frontCutoutName = `${slug}.png`
+  const frontCutoutPath = join(MEDIA_ROOT, 'cutouts', frontCutoutName)
+  const frontCutout = await cutoutFrom(frontJpeg)
+  const frontInfo = await sharp(frontCutout).toFile(frontCutoutPath)
+
+  let backCutoutName: string | null = null
+  if (backJpeg) {
+    backCutoutName = `${slug}-back.png`
+    const backCutout = await cutoutFrom(backJpeg)
+    await sharp(backCutout).toFile(join(MEDIA_ROOT, 'cutouts', backCutoutName))
+  }
+
+  let sideCutoutName: string | null = null
+  if (views.side) {
+    sideCutoutName = `${slug}-side.png`
+    const sideJpeg = await sharp(join(MEDIA_ROOT, 'products', `${slug}-side.jpg`)).toBuffer()
+    const sideCutout = await cutoutFrom(sideJpeg)
+    await sharp(sideCutout).toFile(join(MEDIA_ROOT, 'cutouts', sideCutoutName))
+  }
+  timings.garment = Date.now() - t
+
+  // ── 3. Profundidad del frente ─────────────────────────────
+  t = Date.now()
+  await depthMap(frontCutoutPath, join(MEDIA_ROOT, 'depth', frontCutoutName))
+  timings.depth = Date.now() - t
+  timings.done = 0
 
   return {
     slug,
-    // Se sirven por /api/media: Next no publica archivos añadidos a public/
-    // después del build, y el gerente sube fotos en caliente.
-    photoUrl: `/api/media/products/${photoName}`,
-    cutoutUrl: `/api/media/cutouts/${cutoutName}`,
-    depthUrl: `/api/media/depth/${cutoutName}`,
-    width: cutoutInfo.width ?? width,
-    height: cutoutInfo.height ?? height,
+    photoUrl: `/api/media/products/${frontName}`,
+    cutoutUrl: `/api/media/cutouts/${frontCutoutName}`,
+    backPhotoUrl: backName ? `/api/media/products/${backName}` : null,
+    backCutoutUrl: backCutoutName ? `/api/media/cutouts/${backCutoutName}` : null,
+    sideCutoutUrl: sideCutoutName ? `/api/media/cutouts/${sideCutoutName}` : null,
+    depthUrl: `/api/media/depth/${frontCutoutName}`,
+    width: frontInfo.width,
+    height: frontInfo.height,
+    coverage: 1,
     timings,
   }
 }

@@ -34,6 +34,8 @@ const STAGES = ['Normalizando la foto', 'Recortando la prenda', 'Estimando profu
 
 export function StudioUploader({ colors }: { colors: ColorOption[] }) {
   const [file, setFile] = useState<File | null>(null)
+  const [backFile, setBackFile] = useState<File | null>(null)
+  const [sideFile, setSideFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -50,6 +52,8 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
   const [featured, setFeatured] = useState(true)
 
   const inputRef = useRef<HTMLInputElement>(null)
+  const backRef = useRef<HTMLInputElement>(null)
+  const sideRef = useRef<HTMLInputElement>(null)
 
   function pickFile(next: File | null) {
     setError(null)
@@ -78,6 +82,8 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
     try {
       const body = new FormData()
       body.set('file', file)
+      if (backFile) body.set('fileBack', backFile)
+      if (sideFile) body.set('fileSide', sideFile)
       body.set('name', name)
       body.set('subtitle', subtitle)
       body.set('category', category)
@@ -167,8 +173,34 @@ export function StudioUploader({ colors }: { colors: ColorOption[] }) {
 
         <p className="mt-3 text-[10px] leading-relaxed text-stone">
           Mejor resultado con la prenda centrada, fondo limpio y buena luz. El pipeline recorta el
-          fondo, estima el volumen y arma el modelo 3D sin intervención.
+          fondo, aísla la prenda y estima el volumen sin intervención.
         </p>
+
+        {/* Vistas adicionales: sin la trasera el 3D es simétrico */}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <ExtraSlot
+            label="Vista trasera"
+            hint="Recomendada"
+            file={backFile}
+            inputRef={backRef}
+            onPick={(f) => setBackFile(f)}
+            onClear={() => setBackFile(null)}
+          />
+          <ExtraSlot
+            label="Vista lateral"
+            hint="Opcional"
+            file={sideFile}
+            inputRef={sideRef}
+            onPick={(f) => setSideFile(f)}
+            onClear={() => setSideFile(null)}
+          />
+        </div>
+        {!backFile ? (
+          <p className="mt-3 border border-copper/30 bg-copper/5 px-3 py-2 text-[10px] leading-relaxed text-copper-deep">
+            Sin foto trasera el revés se refleja de la delantera: sirve para tejidos lisos, pero
+            duplica cremalleras o estampados que estén solo al frente.
+          </p>
+        ) : null}
       </div>
 
       {/* ── Formulario ─────────────────────────────────────── */}
@@ -324,5 +356,61 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-[10px] tracking-[0.22em] text-stone uppercase">{label}</span>
       <div className="mt-2">{children}</div>
     </label>
+  )
+}
+
+/** Casilla compacta para las vistas adicionales (trasera / lateral). */
+function ExtraSlot({
+  label,
+  hint,
+  file,
+  inputRef,
+  onPick,
+  onClear,
+}: {
+  label: string
+  hint: string
+  file: File | null
+  inputRef: React.RefObject<HTMLInputElement | null>
+  onPick: (file: File | null) => void
+  onClear: () => void
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          'flex w-full items-center justify-between gap-2 border border-dashed px-3 py-3 text-left transition-colors',
+          file ? 'border-ink/40 bg-paper' : 'border-ink/25 hover:border-ink/50',
+        )}
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-[11px] text-ink">{label}</span>
+          <span className="mt-0.5 block text-[9px] tracking-[0.14em] text-stone uppercase">
+            {file ? file.name.slice(0, 22) : hint}
+          </span>
+        </span>
+        {file ? <CheckCircle2 className="size-4 shrink-0 text-copper" strokeWidth={1.8} /> : null}
+      </button>
+
+      {file ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-1 text-[9px] tracking-[0.14em] text-stone uppercase hover:text-ink"
+        >
+          Quitar
+        </button>
+      ) : null}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+      />
+    </div>
   )
 }
