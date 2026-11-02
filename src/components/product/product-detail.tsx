@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
 import { Box, Camera, Check, Minus, Plus } from 'lucide-react'
 import { Price } from '@/components/product/price'
+import { ZoomLens } from '@/components/product/zoom-lens'
 import { useCart } from '@/lib/cart/store'
 import type { ProductDetailVM } from '@/lib/catalog'
 import { backCutoutUrl, cutoutUrl, depthUrl } from '@/lib/3d/paths'
@@ -114,16 +115,13 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
             label={`Vista 3D de ${product.name}`}
           />
         ) : (
-          <div className="relative aspect-[3/4] overflow-hidden bg-paper-dim">
+          <div className="relative">
             {activeImage ? (
-              <Image
+              <ZoomLens
                 key={activeImage.url}
                 src={activeImage.url}
                 alt={activeImage.alt}
-                fill
                 priority
-                sizes="(max-width: 1024px) 92vw, 52vw"
-                className="reveal object-cover"
               />
             ) : null}
 
