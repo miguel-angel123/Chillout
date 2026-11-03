@@ -25,6 +25,8 @@ overrides:
 #   · sharp   → pipeline de imágenes
 allowBuilds:
   esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
   sharp: true
 
 minimumReleaseAgeExclude:
