@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, useGLTF } from '@react-three/drei'
 import { Move3d } from 'lucide-react'
 import * as THREE from 'three'
@@ -30,10 +30,13 @@ function loadTexture(url: string): Promise<THREE.Texture | null> {
 
 const LIGHTS = (
   <>
-    <directionalLight position={[2.6, 2.4, 3.4]} intensity={2.1} color="#fff6ec" />
-    <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.0} color="#cfd8e6" />
-    <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
-    <ambientLight intensity={0.85} />
+    <directionalLight position={[2.6, 2.4, 3.4]} intensity={2.4} color="#fff6ec" />
+    <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.1} color="#cfd8e6" />
+    {/* Contraluz: en prendas negras el borde iluminado es lo que define la
+        silueta; sin él el modelo se ve como una mancha. */}
+    <directionalLight position={[-1.6, 1.8, -3.4]} intensity={3.2} color="#ffffff" />
+    <directionalLight position={[0, -1.6, 1.4]} intensity={0.45} color="#ffffff" />
+    <ambientLight intensity={0.9} />
   </>
 )
 
@@ -56,6 +59,7 @@ function GlbModel({
   onReady?: () => void
 }) {
   const { scene } = useGLTF(url)
+  const { camera, size } = useThree()
 
   // Se clona una sola vez: cambiar de color solo ajusta el material.
   const prepared = useMemo(() => {
@@ -68,7 +72,9 @@ function GlbModel({
       const source = mesh.material as THREE.MeshStandardMaterial
       const material = source.clone()
       material.metalness = 0
-      material.roughness = 0.92
+      // Rugosidad media: en prendas negras el brillo es lo único que define
+      // la forma, con 0.95 el modelo se ve como una mancha.
+      material.roughness = 0.72
       if (material.map) {
         material.map.colorSpace = THREE.SRGBColorSpace
         material.map.anisotropy = 8
@@ -77,23 +83,62 @@ function GlbModel({
       mesh.material = material
     })
 
-    // Centrar y escalar para que encuadre igual que el volumen procedural.
+    // Centrar y escalar para que la prenda entre completa en el encuadre.
+    // Se ajusta al eje más restrictivo: en un visor vertical el ancho suele
+    // ser el límite real, no el alto.
     const box = new THREE.Box3().setFromObject(clone)
-    const size = new THREE.Vector3()
-    const center = new THREE.Vector3()
-    box.getSize(size)
-    box.getCenter(center)
+    const tamano = new THREE.Vector3()
+    const centro = new THREE.Vector3()
+    box.getSize(tamano)
+    box.getCenter(centro)
 
-    const alto = Math.max(size.y, 1e-6)
-    const escala = 1.95 / alto
+    const perspectiva = camera as THREE.PerspectiveCamera
+    const fovRad = THREE.MathUtils.degToRad(perspectiva.fov ?? 30)
+    const distancia = Math.abs(perspectiva.position.z) || 2.38
+    const altoVisible = 2 * Math.tan(fovRad / 2) * distancia
+    const anchoVisible = altoVisible * (size.width / Math.max(size.height, 1))
 
-    clone.position.set(-center.x, -center.y, -center.z)
+    const margen = 0.62
+    const escalaAlto = (altoVisible * margen) / Math.max(tamano.y, 1e-6)
+    const escalaAncho = (anchoVisible * margen) / Math.max(tamano.x, 1e-6)
+
+    // Permite fijar la escala por URL (?escala=0.5) para calibrar el encuadre
+    // sin recompilar. Sin el parámetro se usa el cálculo por cámara.
+    const override =
+      typeof window !== 'undefined'
+        ? Number(new URLSearchParams(window.location.search).get('escala'))
+        : NaN
+    const escala =
+      Number.isFinite(override) && override > 0 ? override : Math.min(escalaAlto, escalaAncho)
 
     const grupo = new THREE.Group()
-    grupo.scale.setScalar(escala)
+    grupo.scale.setScalar(Number.isFinite(escala) && escala > 0 ? escala : 0.5)
     grupo.add(clone)
+
+    // Centrar con la caja YA escalada: centrar antes de escalar deja la prenda
+    // desplazada y se corta por el bajo.
+    grupo.updateMatrixWorld(true)
+    const cajaFinal = new THREE.Box3().setFromObject(grupo)
+    const centroFinal = new THREE.Vector3()
+    cajaFinal.getCenter(centroFinal)
+    if (
+      Number.isFinite(centroFinal.x) &&
+      Number.isFinite(centroFinal.y) &&
+      Number.isFinite(centroFinal.z)
+    ) {
+      grupo.position.set(-centroFinal.x, -centroFinal.y, -centroFinal.z)
+    }
+
+    if (typeof window !== 'undefined') {
+      const fin = new THREE.Vector3()
+      cajaFinal.getSize(fin)
+      console.debug(
+        `[GLB v4] caja=${tamano.x.toFixed(3)}x${tamano.y.toFixed(3)} escala=${escala.toFixed(3)} final=${fin.x.toFixed(3)}x${fin.y.toFixed(3)} centroY=${centroFinal.y.toFixed(3)}`,
+      )
+    }
+
     return grupo
-  }, [scene])
+  }, [scene, camera, size.width, size.height])
 
   useEffect(() => {
     const color = new THREE.Color(colorHex)
