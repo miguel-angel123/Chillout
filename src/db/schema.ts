@@ -286,6 +286,26 @@ export const orders = pgTable(
   ],
 )
 
+/** Drops: cápsulas limitadas con fecha de apertura. */
+export const drops = pgTable(
+  'drops',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull(),
+    eyebrow: text('eyebrow').notNull().default('Drop'),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    imageUrl: text('image_url'),
+    launchAt: timestamp('launch_at', { withTimezone: true }).notNull(),
+    unidadesPorReferencia: integer('unidades_por_referencia').notNull().default(6),
+    /** Piezas que entran en la cápsula. */
+    productSlugs: text('product_slugs').array().notNull(),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('drops_slug_key').on(t.slug), index('drops_launch_idx').on(t.launchAt)],
+)
+
 /** Cupones de descuento. El servidor es quien los valida y aplica. */
 export const coupons = pgTable(
   'coupons',

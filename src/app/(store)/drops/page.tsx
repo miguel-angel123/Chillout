@@ -6,7 +6,7 @@ import { DropCountdown } from '@/components/drops/drop-countdown'
 import { ProductCard } from '@/components/product/product-card'
 import { Reveal } from '@/components/site/reveal'
 import { getAllProducts } from '@/lib/catalog'
-import { getDrops, getNextDrop } from '@/lib/drops'
+import { cargarDrops, proximoDrop } from '@/lib/drops'
 
 export const metadata: Metadata = {
   title: 'Drops',
@@ -27,11 +27,8 @@ const formatoFecha = new Intl.DateTimeFormat('es-CO', {
 })
 
 export default async function DropsPage() {
-  const [products, drops] = await Promise.all([
-    getAllProducts(),
-    Promise.resolve(getDrops()),
-  ])
-  const siguiente = getNextDrop()
+  const [products, drops] = await Promise.all([getAllProducts(), cargarDrops()])
+  const siguiente = proximoDrop(drops)
   const abierto = siguiente ? new Date(siguiente.lanzamiento).getTime() <= Date.now() : false
 
   const piezas = siguiente
