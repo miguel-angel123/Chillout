@@ -100,15 +100,23 @@ export default async function ProductosPage() {
                   <td className="px-4 py-3 text-[11px] text-stone">
                     {producto.featured ? 'Destacada' : '—'}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/producto/${producto.slug}`}
-                      className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.16em] text-ink uppercase hover:text-copper"
-                    >
-                      <Box className="size-3.5" strokeWidth={1.6} />
-                      Ver
-                      <ArrowRight className="size-3" strokeWidth={1.8} />
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-4">
+                      <Link
+                        href={`/admin/productos/${producto.slug}`}
+                        className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.16em] text-ink uppercase hover:text-copper"
+                      >
+                        Editar
+                        <ArrowRight className="size-3" strokeWidth={1.8} />
+                      </Link>
+                      <Link
+                        href={`/producto/${producto.slug}`}
+                        className="inline-flex items-center gap-1.5 text-[10px] tracking-[0.16em] text-stone uppercase hover:text-ink"
+                      >
+                        <Box className="size-3.5" strokeWidth={1.6} />
+                        Ver
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
