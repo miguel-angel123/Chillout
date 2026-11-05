@@ -22,6 +22,14 @@ export function ProductCard({
   // los productos que traen una foto de hover.
   const hoverSource = primary?.hoverImage ?? product.colors[1]?.image ?? null
 
+  // Rebaja real: solo si hay precio anterior mayor que el actual.
+  const rebaja =
+    product.priceCop !== null &&
+    product.compareAtCop !== null &&
+    product.compareAtCop > product.priceCop
+      ? Math.round(((product.compareAtCop - product.priceCop) / product.compareAtCop) * 100)
+      : null
+
   return (
     <article className={cn('group relative', className)}>
       <Link href={`/producto/${product.slug}`} className="block focus-visible:outline-offset-4">
@@ -49,6 +57,13 @@ export function ProductCard({
                 />
               ) : null}
             </>
+          ) : null}
+
+          {/* Rebaja */}
+          {rebaja !== null && rebaja > 0 ? (
+            <span className="absolute top-3 right-3 bg-copper px-2 py-1 text-[9px] tracking-[0.16em] text-paper uppercase tabular-nums">
+              −{rebaja}%
+            </span>
           ) : null}
 
           {/* Disponibilidad crítica (módulo 15) */}

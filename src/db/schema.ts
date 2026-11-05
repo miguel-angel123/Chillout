@@ -271,6 +271,9 @@ export const orders = pgTable(
     /** Valores recalculados en servidor; el cliente nunca define el total. */
     subtotalCop: integer('subtotal_cop').notNull(),
     shippingCop: integer('shipping_cop').notNull().default(0),
+    /** Descuento aplicado por cupón, siempre validado en el servidor. */
+    discountCop: integer('discount_cop').notNull().default(0),
+    couponCode: text('coupon_code'),
     totalCop: integer('total_cop').notNull(),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -281,6 +284,30 @@ export const orders = pgTable(
     unique('orders_token_key').on(t.token),
     index('orders_status_idx').on(t.status),
   ],
+)
+
+/** Cupones de descuento. El servidor es quien los valida y aplica. */
+export const coupons = pgTable(
+  'coupons',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** Se guarda en mayúsculas para comparar sin ambigüedad. */
+    code: text('code').notNull(),
+    kind: text('kind').notNull().default('percent'),
+    /** Porcentaje (1–100) o pesos, según `kind`. */
+    value: integer('value').notNull(),
+    /** Compra mínima en COP para que el cupón aplique. */
+    minSubtotalCop: integer('min_subtotal_cop').notNull().default(0),
+    active: boolean('active').notNull().default(true),
+    /** Usos totales permitidos; null = sin límite. */
+    usageLimit: integer('usage_limit'),
+    usedCount: integer('used_count').notNull().default(0),
+    /** La fecha se guarda como texto ISO para no arrastrar husos. */
+    validFrom: text('valid_from'),
+    validUntil: text('valid_until'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('coupons_code_key').on(t.code), index('coupons_active_idx').on(t.active)],
 )
 
 export const orderItems = pgTable(

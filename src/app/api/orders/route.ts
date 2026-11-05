@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { and, eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, schema } from '@/db/client'
+import { registrarUsoCupon, validarCupon } from '@/lib/cupones'
 import { orderConfirmationEmail, sendEmail } from '@/lib/notifications/email'
 
 export const runtime = 'nodejs'
@@ -33,6 +34,8 @@ const bodySchema = z.object({
     address: z.string().trim().max(200).optional(),
     notes: z.string().trim().max(500).optional(),
   }),
+  /** Código de cupón; se valida contra la base, nunca se confía en el cliente. */
+  couponCode: z.string().trim().max(40).optional().or(z.literal('')),
 })
 
 const FREE_SHIPPING_FROM = 250_000
@@ -140,8 +143,22 @@ export async function POST(request: Request) {
 
   // ── Totales en servidor ───────────────────────────────────
   const subtotal = resolved.reduce((sum, line) => sum + line.unitPriceCop * line.qty, 0)
+
+  // El cupón se vuelve a validar aquí: el checkout solo mostró una estimación.
+  let descuento = 0
+  let cuponAplicado: string | null = null
+  if (parsed.data.couponCode) {
+    const resultado = await validarCupon(db, parsed.data.couponCode, subtotal)
+    if (resultado.ok) {
+      descuento = resultado.discountCop
+      cuponAplicado = resultado.code
+    }
+  }
+
+  // El envío gratis se mide sobre el subtotal ANTES del descuento: usar un
+  // cupón no debe quitarle al cliente el beneficio del envío.
   const shipping = subtotal >= FREE_SHIPPING_FROM ? 0 : SHIPPING_COP
-  const total = subtotal + shipping
+  const total = Math.max(0, subtotal - descuento) + shipping
 
   const token = crypto.randomUUID()
   let code = makeCode()
@@ -161,6 +178,8 @@ export async function POST(request: Request) {
         notes: customer.notes || null,
         subtotalCop: subtotal,
         shippingCop: shipping,
+        discountCop: descuento,
+        couponCode: cuponAplicado,
         totalCop: total,
       })
       .returning({ id: schema.orders.id })
@@ -192,6 +211,15 @@ export async function POST(request: Request) {
       status: 'pending',
       message: 'Pedido recibido. Te contactamos para confirmar el pago y el envío.',
     })
+
+    // El uso del cupón se cuenta solo cuando el pedido ya quedó registrado.
+    if (cuponAplicado) {
+      try {
+        await registrarUsoCupon(db, cuponAplicado)
+      } catch (cuponError) {
+        console.warn('[orders] uso de cupón no registrado:', (cuponError as Error).message)
+      }
+    }
 
     // El correo no puede tumbar el pedido: si falla, solo se registra.
     if (customer.email) {
@@ -232,6 +260,8 @@ export async function POST(request: Request) {
     token,
     url: `/pedido/${token}`,
     subtotalCop: subtotal,
+    discountCop: descuento,
+    couponCode: cuponAplicado,
     shippingCop: shipping,
     totalCop: total,
   })

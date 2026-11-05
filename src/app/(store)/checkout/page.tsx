@@ -23,7 +23,51 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Cupón: el checkout solo lo consulta; el descuento real lo recalcula el
+  // servidor al crear el pedido.
+  const [codigoCupon, setCodigoCupon] = useState('')
+  const [cupon, setCupon] = useState<{ code: string; discountCop: number } | null>(null)
+  const [aplicando, setAplicando] = useState(false)
+  const [errorCupon, setErrorCupon] = useState<string | null>(null)
+
   const total = cartTotal(items)
+  const descuento = cupon?.discountCop ?? 0
+  const totalConDescuento = total !== null ? Math.max(0, total - descuento) : null
+
+  async function aplicarCupon() {
+    const codigo = codigoCupon.trim()
+    if (!codigo || aplicando || total === null) return
+
+    setAplicando(true)
+    setErrorCupon(null)
+
+    try {
+      const respuesta = await fetch('/api/cupones/validar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: codigo, subtotal: total }),
+      })
+      const datos = (await respuesta.json()) as {
+        ok?: boolean
+        code?: string
+        discountCop?: number
+        motivo?: string
+      }
+
+      if (!respuesta.ok || !datos.ok) {
+        setCupon(null)
+        setErrorCupon(datos.motivo ?? 'Ese cupón no sirve')
+        return
+      }
+
+      setCupon({ code: datos.code ?? codigo.toUpperCase(), discountCop: datos.discountCop ?? 0 })
+      setCodigoCupon(datos.code ?? codigo.toUpperCase())
+    } catch {
+      setErrorCupon('No se pudo comprobar el cupón')
+    } finally {
+      setAplicando(false)
+    }
+  }
 
   async function submitOrder() {
     if (submitting) return
@@ -42,6 +86,7 @@ export default function CheckoutPage() {
             qty: item.qty,
           })),
           customer: { name: form.name, phone: form.phone, email: form.email, city: form.city },
+          couponCode: cupon?.code ?? '',
         }),
       })
 
@@ -126,13 +171,85 @@ export default function CheckoutPage() {
         {/* Datos y cierre */}
         <div>
           <div className="border border-ink/15 p-5">
-            <div className="flex items-baseline justify-between">
+            {descuento > 0 ? (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[10px] tracking-[0.2em] text-stone uppercase">Subtotal</span>
+                  <span className="text-[12px] text-stone line-through tabular-nums">
+                    {total !== null ? formatCop(total) : '—'}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex items-baseline justify-between">
+                  <span className="text-[10px] tracking-[0.2em] text-copper uppercase">
+                    Descuento · {cupon?.code}
+                  </span>
+                  <span className="text-[12px] text-copper tabular-nums">
+                    −{formatCop(descuento)}
+                  </span>
+                </div>
+              </>
+            ) : null}
+
+            <div
+              className={`flex items-baseline justify-between ${
+                descuento > 0 ? 'mt-2 border-t border-ink/10 pt-2' : ''
+              }`}
+            >
               <span className="text-[10px] tracking-[0.2em] text-stone uppercase">Total</span>
               <span className="font-display text-2xl text-ink tabular-nums">
-                {total !== null ? formatCop(total) : 'Por confirmar'}
+                {totalConDescuento !== null ? formatCop(totalConDescuento) : 'Por confirmar'}
               </span>
             </div>
-            <p className="mt-1 text-[10px] text-stone">IVA incluido · Envío se confirma al despachar</p>
+            <p className="mt-1 text-[10px] text-stone">
+              IVA incluido · Envío se confirma al despachar
+            </p>
+          </div>
+
+          {/* Cupón */}
+          <div className="mt-4">
+            <span className="text-[10px] tracking-[0.22em] text-stone uppercase">Cupón</span>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={codigoCupon}
+                onChange={(e) => {
+                  setCodigoCupon(e.target.value.toUpperCase())
+                  setErrorCupon(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (!cupon) aplicarCupon()
+                  }
+                }}
+                placeholder="Escribe tu código"
+                aria-label="Código de cupón"
+                className="min-w-0 flex-1 border border-ink/20 px-3 py-2.5 text-sm tracking-[0.08em] uppercase outline-none focus:border-ink"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (cupon) {
+                    setCupon(null)
+                    setCodigoCupon('')
+                    setErrorCupon(null)
+                    return
+                  }
+                  void aplicarCupon()
+                }}
+                disabled={aplicando || (!cupon && !codigoCupon.trim())}
+                className="shrink-0 border border-ink px-4 text-[10px] tracking-[0.18em] text-ink uppercase transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {aplicando ? '…' : cupon ? 'Quitar' : 'Aplicar'}
+              </button>
+            </div>
+            {errorCupon ? (
+              <p className="mt-1.5 text-[10px] leading-relaxed text-copper-deep">{errorCupon}</p>
+            ) : null}
+            {cupon ? (
+              <p className="mt-1.5 text-[10px] text-copper">
+                Cupón aplicado: ahorras {formatCop(cupon.discountCop)}
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-6 grid gap-4">

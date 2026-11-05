@@ -27,6 +27,8 @@ export type ProductSummaryVM = {
   /** null mientras el cliente no define precios */
   priceCop: number | null
   priceLabel: string | null
+  /** Precio anterior sin formatear, para calcular el % de rebaja. */
+  compareAtCop: number | null
   compareAtLabel: string | null
   tags: string[]
   featured: boolean
@@ -78,6 +80,7 @@ function summaryFromSeed(product: (typeof SEED_PRODUCTS)[number]): ProductSummar
     fit: product.fit,
     priceCop: product.priceCop,
     priceLabel: product.priceCop ? formatCop(product.priceCop) : null,
+    compareAtCop: product.compareAtCop ?? null,
     compareAtLabel: product.compareAtCop ? formatCop(product.compareAtCop) : null,
     tags: product.tags,
     featured: product.featured,
@@ -183,7 +186,8 @@ async function loadFromDatabase(): Promise<LoadedCatalog | null> {
         fit: product.fit,
         priceCop: product.priceCop,
         priceLabel: product.priceCop ? formatCop(product.priceCop) : null,
-        compareAtLabel: product.compareAtCop ? formatCop(product.compareAtCop) : null,
+        compareAtCop: product.compareAtCop ?? null,
+    compareAtLabel: product.compareAtCop ? formatCop(product.compareAtCop) : null,
         tags: product.tags ?? [],
         featured: product.featured,
         colors,
