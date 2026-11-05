@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { Box, LayoutDashboard, LogOut, Receipt } from 'lucide-react'
+import { Box, LayoutDashboard, LogOut, Package, Receipt } from 'lucide-react'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 
 export const metadata = { title: 'Panel CHILLOUT', robots: { index: false, follow: false } }
@@ -28,6 +28,13 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             >
               <LayoutDashboard className="size-4" strokeWidth={1.5} />
               Resumen
+            </Link>
+            <Link
+              href="/admin/productos"
+              className="inline-flex items-center gap-2 text-[11px] tracking-[0.16em] text-paper/70 uppercase hover:text-paper"
+            >
+              <Package className="size-4" strokeWidth={1.5} />
+              Productos
             </Link>
             <Link
               href="/admin/3d-studio"
