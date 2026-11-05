@@ -52,10 +52,12 @@ const LIGHTS = (
 function GlbModel({
   url,
   colorHex,
+  tintable,
   onReady,
 }: {
   url: string
-  colorHex: string
+  colorHex?: string
+  tintable: boolean
   onReady?: () => void
 }) {
   const { scene } = useGLTF(url)
@@ -141,12 +143,14 @@ function GlbModel({
   }, [scene, camera, size.width, size.height])
 
   useEffect(() => {
-    const color = new THREE.Color(colorHex)
+    // Con textura a color (la foto real) el material queda blanco: multiplicar
+    // por el color del catálogo oscurecería la prenda dos veces.
+    const color = tintable ? new THREE.Color(colorHex ?? '#ffffff') : new THREE.Color('#ffffff')
     prepared.traverse((obj) => {
       const mesh = obj as THREE.Mesh
       if (mesh.isMesh) (mesh.material as THREE.MeshStandardMaterial).color.copy(color)
     })
-  }, [prepared, colorHex])
+  }, [prepared, colorHex, tintable])
 
   useEffect(() => {
     onReady?.()
@@ -251,7 +255,8 @@ export function ProductViewer({
   depthUrl,
   backImageUrl,
   glbUrl,
-  colorHex = '#ffffff',
+  colorHex,
+  tintable = false,
   label,
   className,
 }: {
@@ -260,8 +265,10 @@ export function ProductViewer({
   backImageUrl?: string | null
   /** GLB del motor local; si no existe se usa el volumen procedural. */
   glbUrl?: string | null
-  /** Color del catálogo: tiñe la textura de detalle del GLB. */
+  /** Color del catálogo: solo se aplica si el GLB trae textura en gris. */
   colorHex?: string
+  /** El GLB guarda la foto real a color: no se tiñe. */
+  tintable?: boolean
   label: string
   className?: string
 }) {
@@ -309,7 +316,12 @@ export function ProductViewer({
             <>
               {LIGHTS}
               <group position={[0, -0.05, 0]}>
-                <GlbModel url={glbUrl} colorHex={colorHex} onReady={() => setReady(true)} />
+                <GlbModel
+                  url={glbUrl}
+                  colorHex={colorHex}
+                  tintable={tintable}
+                  onReady={() => setReady(true)}
+                />
               </group>
             </>
           ) : glbDisponible === false ? (
