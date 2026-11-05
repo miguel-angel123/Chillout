@@ -38,3 +38,14 @@ export function backCutoutUrl(photoUrl: string): string | null {
   if (!front) return null
   return front.replace(/\.png$/i, '-back.png')
 }
+
+/**
+ * Modelo GLB generado por el motor local (malla cerrada + atlas sin color).
+ *
+ * La ruta es convencional: cada producto tiene como máximo un GLB publicado en
+ * `public/media/models/<slug>.glb`. Si no existe, el visor cae automáticamente
+ * al volumen generado en el navegador, así el catálogo nunca se rompe.
+ */
+export function modelGlbUrl(slug: string): string {
+  return `/api/media/models/${slug}.glb`
+}

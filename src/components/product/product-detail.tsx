@@ -8,7 +8,7 @@ import { Price } from '@/components/product/price'
 import { ZoomLens } from '@/components/product/zoom-lens'
 import { useCart } from '@/lib/cart/store'
 import type { ProductDetailVM } from '@/lib/catalog'
-import { backCutoutUrl, cutoutUrl, depthUrl } from '@/lib/3d/paths'
+import { backCutoutUrl, cutoutUrl, depthUrl, modelGlbUrl } from '@/lib/3d/paths'
 import { cn } from '@/lib/utils'
 
 // El visor usa WebGL y window: solo existe en el cliente.
@@ -49,6 +49,9 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const modelUrl = activeImage ? cutoutUrl(activeImage.url) : null
   const modelDepthUrl = activeImage ? depthUrl(activeImage.url) : null
   const modelBackUrl = activeImage ? backCutoutUrl(activeImage.url) : null
+  // GLB publicado por el motor local (si existe, tiene prioridad sobre el volumen).
+  const modelGlb = modelGlbUrl(product.slug)
+  const colorHex = `#${(color?.hex ?? 'ffffff').replace('#', '')}`
   const inStockSizes = new Set(color?.sizesAvailable ?? [])
   const selectedSizeInStock = sizeSlug ? inStockSizes.has(sizeSlug.toUpperCase()) : false
 
@@ -112,6 +115,8 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
             imageUrl={modelUrl}
             depthUrl={modelDepthUrl}
             backImageUrl={modelBackUrl}
+            glbUrl={modelGlb}
+            colorHex={colorHex}
             label={`Vista 3D de ${product.name}`}
           />
         ) : (

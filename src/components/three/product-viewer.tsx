@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { OrbitControls, useGLTF } from '@react-three/drei'
 import { Move3d } from 'lucide-react'
 import * as THREE from 'three'
 import { buildVolumeGeometry, type VolumeResult } from '@/lib/3d/volume-geometry'
@@ -28,47 +28,94 @@ function loadTexture(url: string): Promise<THREE.Texture | null> {
   })
 }
 
+const LIGHTS = (
+  <>
+    <directionalLight position={[2.6, 2.4, 3.4]} intensity={2.1} color="#fff6ec" />
+    <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.0} color="#cfd8e6" />
+    <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
+    <ambientLight intensity={0.85} />
+  </>
+)
+
+/* ── Modelo GLB del motor local ──────────────────────────── */
+
+/**
+ * Carga el GLB generado por el motor 3D y lo tiñe con el color elegido.
+ *
+ * El GLB trae la textura de detalle en gris normalizado: al multiplicarla por
+ * `material.color`, la prenda entera toma el color del catálogo conservando el
+ * acanalado, las costuras y el relieve del tejido.
+ */
+function GlbModel({
+  url,
+  colorHex,
+  onReady,
+}: {
+  url: string
+  colorHex: string
+  onReady?: () => void
+}) {
+  const { scene } = useGLTF(url)
+
+  // Se clona una sola vez: cambiar de color solo ajusta el material.
+  const prepared = useMemo(() => {
+    const clone = scene.clone(true)
+
+    clone.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+
+      const source = mesh.material as THREE.MeshStandardMaterial
+      const material = source.clone()
+      material.metalness = 0
+      material.roughness = 0.92
+      if (material.map) {
+        material.map.colorSpace = THREE.SRGBColorSpace
+        material.map.anisotropy = 8
+      }
+      material.needsUpdate = true
+      mesh.material = material
+    })
+
+    // Centrar y escalar para que encuadre igual que el volumen procedural.
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
+
+    const alto = Math.max(size.y, 1e-6)
+    const escala = 1.95 / alto
+
+    clone.position.set(-center.x, -center.y, -center.z)
+
+    const grupo = new THREE.Group()
+    grupo.scale.setScalar(escala)
+    grupo.add(clone)
+    return grupo
+  }, [scene])
+
+  useEffect(() => {
+    const color = new THREE.Color(colorHex)
+    prepared.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (mesh.isMesh) (mesh.material as THREE.MeshStandardMaterial).color.copy(color)
+    })
+  }, [prepared, colorHex])
+
+  useEffect(() => {
+    onReady?.()
+  }, [onReady])
+
+  return <primitive object={prepared} />
+}
+
+/* ── Volumen procedural (respaldo sin GLB) ───────────────── */
+
 type Built = {
   photo: THREE.Texture
   backPhoto: THREE.Texture | null
   volume: VolumeResult
-}
-
-/**
- * Percha de alambre: gancho metálico, dos varas finas y travesaño inferior.
- * El travesaño queda oculto dentro de los hombros, así se lee como colgada.
- */
-function Hanger({ y = 0.44 }: { y?: number }) {
-  const wire = '#c9ccd1'
-  const arm = 0.36
-  const angle = 0.588 // 33.69°
-
-  return (
-    // Ligeramente detrás del plano delantero: las varas quedan tras el cuello.
-    <group position={[0, y, -0.07]}>
-      <mesh position={[0, 0.168, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.026, 0.0038, 8, 26, Math.PI * 1.55]} />
-        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
-      </mesh>
-      <mesh position={[0, 0.105, 0]}>
-        <cylinderGeometry args={[0.0038, 0.0038, 0.09, 8]} />
-        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
-      </mesh>
-
-      <mesh position={[-0.15, -0.1, 0]} rotation={[0, 0, angle]}>
-        <boxGeometry args={[arm, 0.008, 0.008]} />
-        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
-      </mesh>
-      <mesh position={[0.15, -0.1, 0]} rotation={[0, 0, -angle]}>
-        <boxGeometry args={[arm, 0.008, 0.008]} />
-        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
-      </mesh>
-      <mesh position={[0, -0.2, 0]}>
-        <boxGeometry args={[0.6, 0.008, 0.008]} />
-        <meshStandardMaterial color={wire} metalness={0.9} roughness={0.3} />
-      </mesh>
-    </group>
-  )
 }
 
 function GarmentModel({
@@ -119,10 +166,9 @@ function GarmentModel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoUrl, depthUrl])
 
-  useFrame(({ clock, pointer }) => {
-    const t = clock.getElapsedTime()
+  useFrame(({ pointer }) => {
     if (keyLight.current) {
-      keyLight.current.position.x = Math.sin(t * 0.32) * 3.1 + pointer.x * 0.9
+      keyLight.current.position.x = pointer.x * 0.9 + 2.2
       keyLight.current.position.y = 2.3 + pointer.y * 0.7
     }
   })
@@ -136,15 +182,10 @@ function GarmentModel({
       <directionalLight position={[0, -1.6, 1.4]} intensity={0.35} color="#ffffff" />
       <ambientLight intensity={0.85} />
 
-      {/* El gancho viene en la propia fotografía: no se modela aparte. */}
-
-      {/* Frente: la foto exacta sobre la superficie con bulto */}
       <mesh geometry={built.volume.front}>
         <meshStandardMaterial map={built.photo} roughness={0.95} metalness={0.02} alphaTest={0.4} />
       </mesh>
 
-      {/* Revés: si hay foto trasera real se usa tal cual; si no, la delantera
-          reflejada (el UV ya viene invertido en la capa trasera). */}
       <mesh geometry={built.volume.back}>
         <meshStandardMaterial
           map={built.backPhoto ?? built.photo}
@@ -158,22 +199,50 @@ function GarmentModel({
   )
 }
 
+/* ── Visor ───────────────────────────────────────────────── */
+
 export function ProductViewer({
   imageUrl,
   depthUrl,
   backImageUrl,
+  glbUrl,
+  colorHex = '#ffffff',
   label,
   className,
 }: {
   imageUrl: string
   depthUrl?: string | null
-  /** Vista trasera real; si falta, el revés usa la delantera reflejada. */
   backImageUrl?: string | null
+  /** GLB del motor local; si no existe se usa el volumen procedural. */
+  glbUrl?: string | null
+  /** Color del catálogo: tiñe la textura de detalle del GLB. */
+  colorHex?: string
   label: string
   className?: string
 }) {
   const [ready, setReady] = useState(false)
   const [interacted, setInteracted] = useState(false)
+  const [glbDisponible, setGlbDisponible] = useState<boolean | null>(null)
+
+  // El GLB es opcional: se comprueba antes de pedirlo para no romper el visor.
+  useEffect(() => {
+    if (!glbUrl) {
+      setGlbDisponible(false)
+      return
+    }
+    let alive = true
+    setGlbDisponible(null)
+    fetch(glbUrl, { method: 'HEAD' })
+      .then((r) => {
+        if (alive) setGlbDisponible(r.ok)
+      })
+      .catch(() => {
+        if (alive) setGlbDisponible(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [glbUrl])
 
   const framed = useMemo(() => ({ position: [0, 0, 2.38] as [number, number, number], fov: 30 }), [])
 
@@ -191,12 +260,21 @@ export function ProductViewer({
         style={{ touchAction: 'pan-y' }}
       >
         <Suspense fallback={null}>
-          <GarmentModel
-            photoUrl={imageUrl}
-            depthUrl={depthUrl ?? null}
-            backImageUrl={backImageUrl ?? null}
-            onReady={() => setReady(true)}
-          />
+          {glbDisponible && glbUrl ? (
+            <>
+              {LIGHTS}
+              <group position={[0, -0.05, 0]}>
+                <GlbModel url={glbUrl} colorHex={colorHex} onReady={() => setReady(true)} />
+              </group>
+            </>
+          ) : glbDisponible === false ? (
+            <GarmentModel
+              photoUrl={imageUrl}
+              depthUrl={depthUrl ?? null}
+              backImageUrl={backImageUrl ?? null}
+              onReady={() => setReady(true)}
+            />
+          ) : null}
         </Suspense>
 
         <OrbitControls
