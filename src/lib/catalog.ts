@@ -13,6 +13,10 @@ export type ProductColorVM = {
   /** Vistas adicionales (trasera, lateral) para la galería de la ficha. */
   extraImages: { url: string; alt: string }[]
   sizesAvailable: string[]
+  /** Unidades reales por talla, para limitar la cantidad y avisar de escasez. */
+  stockBySize: Record<string, number>
+  /** Umbral de escasez configurado en la variante. */
+  lowStockThreshold: number
   totalStock: number
   lowStockSize?: { size: string; remaining: number }
 }
@@ -65,6 +69,8 @@ function summaryFromSeed(product: (typeof SEED_PRODUCTS)[number]): ProductSummar
       image: primary ? { url: primary.url, alt: primary.alt } : PLACEHOLDER,
       hoverImage: secondary ? { url: secondary.url, alt: secondary.alt } : undefined,
       extraImages: variant.images.slice(2).map((img) => ({ url: img.url, alt: img.alt })),
+      stockBySize: Object.fromEntries(entries.map(([slug, stock]) => [slug.toUpperCase(), stock])),
+      lowStockThreshold: 3,
       sizesAvailable: inStock.map(([size]) => size.toUpperCase()),
       totalStock: entries.reduce((sum, [, n]) => sum + n, 0),
       lowStockSize: low ? { size: low[0].toUpperCase(), remaining: low[1] } : undefined,
@@ -150,9 +156,12 @@ async function loadFromDatabase(): Promise<LoadedCatalog | null> {
         const colorInfo = colorById.get(colorId)
         const colorVariants = byColor.get(colorId) ?? []
 
-        const images = media.filter((m) => m.colorId === colorId)
-        const fallbackImages = media.filter((m) => m.colorId === null)
-        const candidates = images.length > 0 ? images : fallbackImages
+        const propias = media.filter((m) => m.colorId === colorId)
+        const sinColor = media.filter((m) => m.colorId === null)
+        // Si el color no tiene fotos propias, hereda las del producto: es mejor
+        // mostrar la prenda que un marcador vacío.
+        const candidates =
+          propias.length > 0 ? propias : sinColor.length > 0 ? sinColor : media
         const primary = candidates[0]
         const secondary = candidates[1]
 
@@ -170,6 +179,10 @@ async function loadFromDatabase(): Promise<LoadedCatalog | null> {
           hoverImage: secondary ? { url: secondary.url, alt: secondary.alt } : undefined,
           extraImages: candidates.slice(2).map((m) => ({ url: m.url, alt: m.alt })),
           sizesAvailable: available.map((v) => sizeById.get(v.sizeId)?.label ?? '?'),
+          stockBySize: Object.fromEntries(
+            colorVariants.map((v) => [sizeById.get(v.sizeId)?.label ?? '?', v.stock]),
+          ),
+          lowStockThreshold: colorVariants[0]?.lowStockThreshold ?? 3,
           totalStock: colorVariants.reduce((sum, v) => sum + v.stock, 0),
           lowStockSize: low
             ? { size: sizeById.get(low.sizeId)?.label ?? '?', remaining: low.stock }

@@ -51,14 +51,45 @@ export async function POST(request: Request) {
   const calceRaw = texto('fit')
   const calce = ['slim', 'regular', 'oversize'].includes(calceRaw) ? calceRaw : 'regular'
 
+  // Colores: lista (varios) o el campo simple de antes.
+  let colorSlugs: string[] = []
+  try {
+    const crudo = JSON.parse(texto('colorSlugs') || '[]') as unknown
+    if (Array.isArray(crudo)) {
+      colorSlugs = crudo.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    }
+  } catch {
+    colorSlugs = []
+  }
+  if (colorSlugs.length === 0 && colorSlug) colorSlugs = [colorSlug]
+
   const precio = Number.parseInt(texto('priceCop') || '0', 10)
   const precioComparacion = Number.parseInt(texto('compareAtCop') || '0', 10)
-  const stock = Math.max(0, Math.min(999, Number.parseInt(texto('stock') || '0', 10) || 0))
   const destacado = texto('featured') === 'true'
   const etiquetas = texto('tags')
     .split(',')
     .map((t) => t.trim())
     .filter(Boolean)
+
+  // Stock por talla: mapa { "s": 3, "m": 5 }. Si llega, manda sobre `stock`.
+  let stocks: Record<string, number> | null = null
+  try {
+    const crudo = texto('stocks')
+    if (crudo) {
+      const parseado = JSON.parse(crudo) as unknown
+      if (parseado && typeof parseado === 'object') {
+        stocks = Object.fromEntries(
+          Object.entries(parseado as Record<string, unknown>).map(([talla, valor]) => [
+            talla,
+            Math.max(0, Math.min(999, Number(valor) || 0)),
+          ]),
+        )
+      }
+    }
+  } catch {
+    stocks = null
+  }
+  const stockGlobal = Math.max(0, Math.min(999, Number.parseInt(texto('stock') || '0', 10) || 0))
 
   const imagenes = form.getAll('imagenes').filter((f): f is File => f instanceof File)
   if (imagenes.length === 0) {
@@ -83,10 +114,25 @@ export async function POST(request: Request) {
 
   const db = getDb()
 
-  const [color] = await db.select().from(schema.colors).where(eq(schema.colors.slug, colorSlug)).limit(1)
+  const [color] = await db.select().from(schema.colors).where(eq(schema.colors.slug, colorSlugs[0] ?? '')).limit(1)
   if (!color) {
-    return NextResponse.json({ error: `Color desconocido: ${colorSlug}` }, { status: 400 })
+    return NextResponse.json(
+      { error: `Color desconocido: ${colorSlugs[0] ?? '(ninguno)'}` },
+      { status: 400 },
+    )
   }
+
+  // Todos los colores marcados por el gerente.
+  const coloresElegidos: typeof schema.colors.$inferSelect[] = []
+  for (const slugColor of colorSlugs) {
+    const [encontrado] = await db
+      .select()
+      .from(schema.colors)
+      .where(eq(schema.colors.slug, slugColor))
+      .limit(1)
+    if (encontrado) coloresElegidos.push(encontrado)
+  }
+  if (coloresElegidos.length === 0) coloresElegidos.push(color)
 
   const tallas = await db.select().from(schema.sizes).orderBy(schema.sizes.sortOrder)
   if (tallas.length === 0) {
@@ -171,17 +217,23 @@ export async function POST(request: Request) {
     if (!producto) throw new Error('No se pudo crear el producto')
     creado = producto.id
 
-    for (const talla of tallas) {
-      await db.insert(schema.productVariants).values({
-        productId: producto.id,
-        colorId: color.id,
-        sizeId: talla.id,
-        sku: `CHL-${producto.id.slice(0, 8).toUpperCase()}-${color.slug.slice(0, 3).toUpperCase()}-${talla.slug.toUpperCase()}`,
-        priceCop: Number.isFinite(precio) && precio > 0 ? precio : null,
-        stock,
-      })
+    // Una variante por color × talla, con el stock de ESA talla.
+    for (const colorElegido of coloresElegidos) {
+      for (const talla of tallas) {
+        const stockTalla = stocks ? (stocks[talla.slug] ?? 0) : stockGlobal
+        await db.insert(schema.productVariants).values({
+          productId: producto.id,
+          colorId: colorElegido.id,
+          sizeId: talla.id,
+          sku: `CHL-${producto.id.slice(0, 8).toUpperCase()}-${colorElegido.slug.slice(0, 3).toUpperCase()}-${talla.slug.toUpperCase()}`,
+          priceCop: Number.isFinite(precio) && precio > 0 ? precio : null,
+          stock: stockTalla,
+        })
+      }
     }
 
+    // Las fotos se asignan al primer color; los demás heredan esa imagen hasta
+    // que el gerente suba las suyas.
     for (const [indice, media] of guardadas.entries()) {
       await db.insert(schema.productMedia).values({
         productId: producto.id,
@@ -216,6 +268,10 @@ export async function POST(request: Request) {
       url: `/producto/${slug}`,
       imagenes: guardadas.length,
       glb: Boolean(glbUrl),
+      colores: coloresElegidos.length,
+      unidades:
+        (Object.values(stocks ?? {}).reduce((suma, n) => suma + n, 0) ||
+          stockGlobal * tallas.length) * coloresElegidos.length,
     })
   } catch (error) {
     // No dejar productos a medio crear

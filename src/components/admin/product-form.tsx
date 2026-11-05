@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, ImageUp, Loader2, Package, X } from 'lucide-r
 import { cn } from '@/lib/utils'
 
 type ColorOption = { slug: string; name: string; hex: string }
+type SizeOption = { slug: string; label: string }
 
 type Resultado = {
   ok: boolean
@@ -14,6 +15,8 @@ type Resultado = {
   url: string
   imagenes: number
   glb: boolean
+  colores?: number
+  unidades?: number
 }
 
 const CATEGORIAS = [
@@ -39,7 +42,7 @@ const cop = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
  * GLB que venga de fuera. La primera foto es la frontal y la segunda la
  * trasera; el resto se guardan como editoriales.
  */
-export function ProductForm({ colors }: { colors: ColorOption[] }) {
+export function ProductForm({ colors, sizes }: { colors: ColorOption[]; sizes: SizeOption[] }) {
   const [nombre, setNombre] = useState('')
   const [subtitulo, setSubtitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -51,7 +54,12 @@ export function ProductForm({ colors }: { colors: ColorOption[] }) {
   const [stock, setStock] = useState('0')
   const [etiquetas, setEtiquetas] = useState('')
   const [destacado, setDestacado] = useState(false)
-  const [colorSlug, setColorSlug] = useState(colors[0]?.slug ?? '')
+  // Varios colores a la vez: cada uno genera sus propias variantes.
+  const [colores, setColores] = useState<string[]>(colors[0] ? [colors[0].slug] : [])
+  // Stock por talla: cada talla se carga por separado.
+  const [stocks, setStocks] = useState<Record<string, string>>(
+    Object.fromEntries(sizes.map((talla) => [talla.slug, '0'])),
+  )
 
   const [imagenes, setImagenes] = useState<{ file: File; url: string }[]>([])
   const [glb, setGlb] = useState<File | null>(null)
@@ -116,9 +124,13 @@ export function ProductForm({ colors }: { colors: ColorOption[] }) {
       cuerpo.set('priceCop', precio)
       cuerpo.set('compareAtCop', precioComparacion)
       cuerpo.set('stock', stock)
+      cuerpo.set('stocks', JSON.stringify(Object.fromEntries(
+        Object.entries(stocks).map(([slugTalla, valor]) => [slugTalla, Number.parseInt(valor, 10) || 0]),
+      )))
+      cuerpo.set('colorSlugs', JSON.stringify(colores))
+      cuerpo.set('colorSlug', colores[0] ?? '')
       cuerpo.set('tags', etiquetas)
       cuerpo.set('featured', String(destacado))
-      cuerpo.set('colorSlug', colorSlug)
       imagenes.forEach(({ file }) => cuerpo.append('imagenes', file))
       if (glb) cuerpo.set('glb', glb)
 
@@ -371,35 +383,67 @@ export function ProductForm({ colors }: { colors: ColorOption[] }) {
             />
           </Field>
 
-          <Field label="Color">
+          <Field label="Colores disponibles">
             <div className="flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color.slug}
-                  type="button"
-                  onClick={() => setColorSlug(color.slug)}
-                  aria-pressed={color.slug === colorSlug}
-                  title={color.name}
-                  className={cn(
-                    'size-9 ring-1 ring-offset-2 ring-offset-paper transition-all',
-                    color.slug === colorSlug ? 'ring-ink' : 'ring-ink/20 hover:ring-ink/50',
-                  )}
-                  style={{ backgroundColor: `#${color.hex}` }}
-                />
-              ))}
+              {colors.map((color) => {
+                const activo = colores.includes(color.slug)
+                return (
+                  <button
+                    key={color.slug}
+                    type="button"
+                    onClick={() =>
+                      setColores((prev) =>
+                        activo
+                          ? prev.length > 1
+                            ? prev.filter((c) => c !== color.slug)
+                            : prev // nunca dejar el producto sin color
+                          : [...prev, color.slug],
+                      )
+                    }
+                    aria-pressed={activo}
+                    title={color.name}
+                    className={cn(
+                      'relative size-9 ring-1 ring-offset-2 ring-offset-paper transition-all',
+                      activo ? 'ring-ink' : 'ring-ink/20 hover:ring-ink/50',
+                    )}
+                    style={{ backgroundColor: `#${color.hex}` }}
+                  >
+                    {activo ? (
+                      <span className="absolute inset-0 grid place-items-center text-[11px] font-semibold text-paper">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
             </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-stone">
+              {colores.length} {colores.length === 1 ? 'color' : 'colores'} · marca todos los que
+              existan. Las fotos que subas se asignan al primero.
+            </p>
           </Field>
 
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="Stock por talla">
-              <input
-                type="number"
-                min={0}
-                max={999}
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                className="w-full border border-ink/20 px-3 py-2.5 text-sm outline-none focus:border-ink"
-              />
+              <div className="grid grid-cols-4 gap-2">
+                {sizes.map((talla) => (
+                  <label key={talla.slug} className="block">
+                    <span className="text-[9px] tracking-[0.16em] text-stone uppercase">
+                      {talla.label}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={999}
+                      value={stocks[talla.slug] ?? '0'}
+                      onChange={(e) =>
+                        setStocks((prev) => ({ ...prev, [talla.slug]: e.target.value }))
+                      }
+                      className="mt-1 w-full border border-ink/20 px-2 py-2 text-sm tabular-nums outline-none focus:border-ink"
+                    />
+                  </label>
+                ))}
+              </div>
             </Field>
 
             <Field label="Etiquetas">
@@ -439,7 +483,10 @@ export function ProductForm({ colors }: { colors: ColorOption[] }) {
               Prenda publicada
             </p>
             <p className="mt-2 text-[12px] text-stone-dark">
-              {resultado.imagenes} {resultado.imagenes === 1 ? 'imagen' : 'imágenes'} ·{' '}
+              {resultado.imagenes} {resultado.imagenes === 1 ? 'imagen' : 'imágenes'}
+              {resultado.colores ? ` · ${resultado.colores} ${resultado.colores === 1 ? 'color' : 'colores'}` : ''}
+              {typeof resultado.unidades === 'number' ? ` · ${resultado.unidades} unidades` : ''}
+              {' · '}
               {resultado.glb ? 'modelo 3D adjunto' : 'sin modelo 3D'}
             </p>
             <Link

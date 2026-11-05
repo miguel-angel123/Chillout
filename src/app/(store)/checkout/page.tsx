@@ -106,15 +106,24 @@ export default function CheckoutPage() {
     }
   }
 
+  // Prendas que todavía no tienen precio: la compra en línea no procede, pero
+  // el pedido por WhatsApp sí, preguntando el precio en el mismo mensaje.
+  const pendientes = items.filter((item) => item.priceCop === null)
+
   const message = [
     'Hola CHILLOUT, quiero confirmar este pedido:',
     ...items.map(
       (item) =>
         `• ${item.name} — ${item.colorName}, talla ${item.size} × ${item.qty}${
-          item.priceCop ? ` (${formatCop(item.priceCop * item.qty)})` : ''
+          item.priceCop !== null
+            ? ` (${formatCop(item.priceCop * item.qty)})`
+            : ' (precio por confirmar)'
         }`,
     ),
     total !== null ? `Total: ${formatCop(total)} (IVA incluido)` : 'Total: por confirmar',
+    pendientes.length > 0
+      ? `¿Me confirmas el precio de ${pendientes.map((item) => item.name).join(', ')}?`
+      : '',
     form.name ? `A nombre de: ${form.name}` : '',
     form.phone ? `Teléfono: ${form.phone}` : '',
     form.city ? `Ciudad: ${form.city}` : '',

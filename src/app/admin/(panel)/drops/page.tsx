@@ -16,18 +16,33 @@ export default async function DropsPage() {
     productSlugs: string[]
     active: boolean
   }[] = []
-  let productos: { slug: string; name: string }[] = []
+  let productos: { slug: string; name: string; imageUrl: string | null }[] = []
   let dbError: string | null = null
 
   try {
     const db = getDb()
-    const [filas, listaProductos] = await Promise.all([
+    const [filas, listaProductos, medios] = await Promise.all([
       db.select().from(schema.drops).orderBy(asc(schema.drops.launchAt)),
       db
-        .select({ slug: schema.products.slug, name: schema.products.name })
+        .select({ id: schema.products.id, slug: schema.products.slug, name: schema.products.name })
         .from(schema.products)
         .orderBy(desc(schema.products.featured), asc(schema.products.name)),
+      db
+        .select({
+          productId: schema.productMedia.productId,
+          url: schema.productMedia.url,
+        })
+        .from(schema.productMedia)
+        .orderBy(asc(schema.productMedia.sortOrder)),
     ])
+
+    // Primera imagen de cada prenda, para que el gerente reconozca la pieza.
+    const primeraPorProducto = new Map<string, string>()
+    for (const medio of medios) {
+      if (!primeraPorProducto.has(medio.productId)) {
+        primeraPorProducto.set(medio.productId, medio.url)
+      }
+    }
 
     drops = filas.map((fila) => ({
       slug: fila.slug,
@@ -40,7 +55,11 @@ export default async function DropsPage() {
       productSlugs: fila.productSlugs ?? [],
       active: fila.active,
     }))
-    productos = listaProductos
+    productos = listaProductos.map((producto) => ({
+      slug: producto.slug,
+      name: producto.name,
+      imageUrl: primeraPorProducto.get(producto.id) ?? null,
+    }))
   } catch (error) {
     dbError = (error as Error).message
   }

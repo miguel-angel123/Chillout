@@ -18,7 +18,7 @@ type Drop = {
   active: boolean
 }
 
-type Producto = { slug: string; name: string }
+type Producto = { slug: string; name: string; imageUrl: string | null }
 
 /**
  * Convierte un ISO a valor de <input type="datetime-local"> en hora de Colombia,
@@ -197,20 +197,41 @@ export function DropManager({ drops, productos }: { drops: Drop[]; productos: Pr
 
         <div>
           <span className="text-[9px] tracking-[0.2em] text-stone uppercase">Piezas del drop</span>
-          <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto border border-ink/10 p-2">
-            {productos.map((producto) => (
-              <li key={producto.slug}>
-                <label className="flex items-center gap-2 text-[11px] text-stone-dark">
-                  <input
-                    type="checkbox"
-                    checked={seleccion.includes(producto.slug)}
-                    onChange={() => alternarProducto(producto.slug)}
-                    className="size-3.5 accent-[#b4593a]"
-                  />
-                  {producto.name}
-                </label>
-              </li>
-            ))}
+          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto border border-ink/10 p-2">
+            {productos.map((producto) => {
+              const dentro = seleccion.includes(producto.slug)
+              return (
+                <li key={producto.slug}>
+                  <label
+                    className={cn(
+                      'flex cursor-pointer items-center gap-2.5 p-1.5 transition-colors',
+                      dentro ? 'bg-paper-dim' : 'hover:bg-paper-dim/60',
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={dentro}
+                      onChange={() => alternarProducto(producto.slug)}
+                      className="size-3.5 shrink-0 accent-[#b4593a]"
+                    />
+                    <span className="relative size-9 shrink-0 overflow-hidden bg-paper-dim">
+                      {producto.imageUrl ? (
+                        <Image
+                          src={producto.imageUrl}
+                          alt={producto.name}
+                          fill
+                          sizes="36px"
+                          className="object-cover"
+                        />
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[11px] text-stone-dark">
+                      {producto.name}
+                    </span>
+                  </label>
+                </li>
+              )
+            })}
           </ul>
         </div>
 
@@ -295,6 +316,32 @@ export function DropManager({ drops, productos }: { drops: Drop[]; productos: Pr
                         {drop.productSlugs.length === 1 ? 'pieza' : 'piezas'} ·{' '}
                         {drop.unidadesPorReferencia} unid. por referencia
                       </p>
+
+                      {/* Miniaturas de las piezas que entran en el drop */}
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {drop.productSlugs.map((slug) => {
+                          const pieza = productos.find((p) => p.slug === slug)
+                          return (
+                            <li key={slug} title={pieza?.name ?? slug}>
+                              <span className="relative block size-10 overflow-hidden bg-paper-dim">
+                                {pieza?.imageUrl ? (
+                                  <Image
+                                    src={pieza.imageUrl}
+                                    alt={pieza.name}
+                                    fill
+                                    sizes="40px"
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <span className="grid size-full place-items-center text-[8px] text-stone">
+                                    —
+                                  </span>
+                                )}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
                     </div>
 
                     <div className="flex items-center gap-2">

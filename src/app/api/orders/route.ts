@@ -78,9 +78,20 @@ export async function POST(request: Request) {
     if (!product) {
       return NextResponse.json({ error: `Producto no disponible: ${line.slug}` }, { status: 409 })
     }
-    if (product.status !== 'active' || product.priceCop === null) {
+    if (product.status !== 'active') {
       return NextResponse.json(
         { error: `${product.name} no está disponible para la venta` },
+        { status: 409 },
+      )
+    }
+    // Sin precio no hay venta: el pedido no puede calcular un total fiable.
+    if (product.priceCop === null) {
+      return NextResponse.json(
+        {
+          error: `${product.name} tiene el precio por confirmar. Escríbenos por WhatsApp y lo cerramos contigo.`,
+          motivo: 'precio-pendiente',
+          slug: product.slug,
+        },
         { status: 409 },
       )
     }

@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import {
-  Box,
   CalendarClock,
   LayoutDashboard,
   Layers,
@@ -44,13 +43,6 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             >
               <Package className="size-4" strokeWidth={1.5} />
               Productos
-            </Link>
-            <Link
-              href="/admin/3d-studio"
-              className="inline-flex items-center gap-2 text-[11px] tracking-[0.16em] text-paper/70 uppercase hover:text-paper"
-            >
-              <Box className="size-4" strokeWidth={1.5} />
-              3D Studio
             </Link>
             <Link
               href="/admin/drops"

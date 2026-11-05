@@ -8,14 +8,23 @@ export const dynamic = 'force-dynamic'
 
 export default async function NuevoProductoPage() {
   let colors: { slug: string; name: string; hex: string }[] = []
+  let sizes: { slug: string; label: string }[] = []
   let dbError: string | null = null
 
   try {
     const db = getDb()
-    colors = await db
-      .select({ slug: schema.colors.slug, name: schema.colors.name, hex: schema.colors.hex })
-      .from(schema.colors)
-      .orderBy(asc(schema.colors.sortOrder))
+    const [filasColores, filasTallas] = await Promise.all([
+      db
+        .select({ slug: schema.colors.slug, name: schema.colors.name, hex: schema.colors.hex })
+        .from(schema.colors)
+        .orderBy(asc(schema.colors.sortOrder)),
+      db
+        .select({ slug: schema.sizes.slug, label: schema.sizes.label })
+        .from(schema.sizes)
+        .orderBy(asc(schema.sizes.sortOrder)),
+    ])
+    colors = filasColores
+    sizes = filasTallas
   } catch (error) {
     dbError = (error as Error).message
   }
@@ -48,7 +57,7 @@ export default async function NuevoProductoPage() {
       ) : null}
 
       <div className="mt-12">
-        <ProductForm colors={colors} />
+        <ProductForm colors={colors} sizes={sizes} />
       </div>
     </div>
   )

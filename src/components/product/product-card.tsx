@@ -15,7 +15,10 @@ export function ProductCard({
   className?: string
 }) {
   const primary = product.colors[0]
-  const lowStock = primary?.lowStockSize
+  // Escasez: solo cuando una talla con stock está por debajo del umbral. Un
+  // producto con stock sano no dice nada; uno agotado se marca aparte.
+  const tallaEscasa = primary ? (primary.lowStockSize ?? null) : null
+  const agotado = primary ? primary.totalStock === 0 : false
 
   // Imagen de hover: la foto dedicada si existe; si no, el segundo color.
   // Así el cambio al pasar el ratón funciona en todo el catálogo, no solo en
@@ -66,10 +69,14 @@ export function ProductCard({
             </span>
           ) : null}
 
-          {/* Disponibilidad crítica (módulo 15) */}
-          {lowStock ? (
+          {/* Disponibilidad (módulo 15) */}
+          {agotado ? (
+            <span className="absolute top-3 left-3 bg-ink px-2 py-1 text-[9px] tracking-[0.16em] text-paper uppercase">
+              Agotado
+            </span>
+          ) : tallaEscasa ? (
             <span className="absolute top-3 left-3 bg-paper/95 px-2 py-1 text-[9px] tracking-[0.16em] text-ink uppercase">
-              Quedan {lowStock.remaining} · {lowStock.size}
+              Quedan {tallaEscasa.remaining} · {tallaEscasa.size}
             </span>
           ) : null}
 

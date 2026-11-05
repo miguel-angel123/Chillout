@@ -3,11 +3,12 @@
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useMemo, useState } from 'react'
-import { Box, Camera, Check, Minus, Plus } from 'lucide-react'
+import { Box, Camera, Check, MessageCircle, Minus, Plus } from 'lucide-react'
 import { Price } from '@/components/product/price'
 import { ZoomLens } from '@/components/product/zoom-lens'
 import { useCart } from '@/lib/cart/store'
 import type { ProductDetailVM } from '@/lib/catalog'
+import { SITE, waLink } from '@/lib/brand'
 import { backCutoutUrl, cutoutUrl, depthUrl, modelGlbUrl } from '@/lib/3d/paths'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const [sizeSlug, setSizeSlug] = useState<string | null>(null)
   const [imageIndex, setImageIndex] = useState(0)
   const [added, setAdded] = useState(false)
+  const [quantity, setQuantity] = useState(1)
   const [view, setView] = useState<'foto' | '3d'>('foto')
   const addToCart = useCart((state) => state.add)
 
@@ -55,23 +57,38 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
   const inStockSizes = new Set(color?.sizesAvailable ?? [])
   const selectedSizeInStock = sizeSlug ? inStockSizes.has(sizeSlug.toUpperCase()) : false
 
+  // Unidades reales de la talla elegida: limitan la cantidad y permiten avisar.
+  const stockTalla = sizeSlug ? (color?.stockBySize?.[sizeSlug.toUpperCase()] ?? 0) : 0
+  const maximo = Math.max(1, stockTalla)
+  const cantidad = Math.min(quantity, maximo)
+
+  // Sin precio no se puede comprar: se cierra la venta por WhatsApp.
+  const sinPrecio = product.priceCop === null
+  const mensajePrecio = sinPrecio
+    ? `Hola CHILLOUT, me interesa la prenda ${product.name}${color ? ` (${color.name})` : ''}. Veo que el precio está por confirmar: ¿me lo confirmas?`
+    : ''
+
   function selectColor(slug: string) {
     setColorSlug(slug)
     setImageIndex(0)
+    setQuantity(1)
   }
 
   function handleAdd() {
-    if (!selectedSizeInStock || !sizeSlug || !color) return
+    if (!selectedSizeInStock || !sizeSlug || !color || sinPrecio) return
 
-    addToCart({
-      slug: product.slug,
-      name: product.name,
-      colorSlug: color.slug,
-      colorName: color.name,
-      size: sizeSlug.toUpperCase(),
-      priceCop: product.priceCop,
-      image: color.image.url,
-    })
+    addToCart(
+      {
+        slug: product.slug,
+        name: product.name,
+        colorSlug: color.slug,
+        colorName: color.name,
+        size: sizeSlug.toUpperCase(),
+        priceCop: product.priceCop,
+        image: color.image.url,
+      },
+      cantidad,
+    )
 
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)
@@ -221,7 +238,10 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
                   key={size.slug}
                   type="button"
                   disabled={!available}
-                  onClick={() => setSizeSlug(size.slug)}
+                  onClick={() => {
+                    setSizeSlug(size.slug)
+                    setQuantity(1)
+                  }}
                   aria-pressed={sizeSlug === size.slug}
                   className={cn(
                     'relative py-3 text-[12px] tracking-[0.12em] transition-all',
@@ -242,33 +262,40 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
               )
             })}
           </div>
-          {color?.lowStockSize ? (
-            <p className="mt-3 text-[11px] text-copper">
-              {color.lowStockSize.remaining === 1
-                ? `Solo queda 1 unidad en talla ${color.lowStockSize.size}`
-                : `Solo quedan ${color.lowStockSize.remaining} unidades en talla ${color.lowStockSize.size}`}
-            </p>
-          ) : null}
         </fieldset>
 
         {/* Añadir */}
         <div className="mt-9 flex items-stretch gap-2">
           <div className="flex items-center border border-ink/20">
-            <span className="grid size-12 place-items-center text-ink/40" aria-hidden>
+            <button
+              type="button"
+              onClick={() => setQuantity((n) => Math.max(1, n - 1))}
+              disabled={cantidad <= 1}
+              aria-label="Quitar una unidad"
+              className="grid size-12 place-items-center text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:text-ink/25 disabled:hover:bg-transparent"
+            >
               <Minus className="size-3.5" strokeWidth={1.6} />
+            </button>
+            <span className="w-8 text-center text-sm tabular-nums" aria-live="polite">
+              {cantidad}
             </span>
-            <span className="w-8 text-center text-sm tabular-nums">1</span>
-            <span className="grid size-12 place-items-center text-ink/40" aria-hidden>
+            <button
+              type="button"
+              onClick={() => setQuantity((n) => Math.min(maximo, n + 1))}
+              disabled={!selectedSizeInStock || cantidad >= maximo}
+              aria-label="Añadir una unidad"
+              className="grid size-12 place-items-center text-ink transition-colors hover:bg-ink hover:text-paper disabled:cursor-not-allowed disabled:text-ink/25 disabled:hover:bg-transparent"
+            >
               <Plus className="size-3.5" strokeWidth={1.6} />
-            </span>
+            </button>
           </div>
           <button
             type="button"
             onClick={handleAdd}
-            disabled={!selectedSizeInStock}
+            disabled={!selectedSizeInStock || sinPrecio}
             className={cn(
               'sheen flex-1 text-[11px] tracking-[0.24em] uppercase transition-colors',
-              selectedSizeInStock
+              selectedSizeInStock && !sinPrecio
                 ? 'bg-ink text-paper hover:bg-copper'
                 : 'cursor-not-allowed bg-ink/10 text-stone',
             )}
@@ -277,6 +304,8 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
               <span className="inline-flex items-center justify-center gap-2">
                 <Check className="size-4" strokeWidth={1.8} /> Añadido
               </span>
+            ) : sinPrecio ? (
+              'Precio por confirmar'
             ) : selectedSizeInStock ? (
               'Añadir al carrito'
             ) : (
@@ -284,6 +313,27 @@ export function ProductDetail({ product }: { product: ProductDetailVM }) {
             )}
           </button>
         </div>
+
+        {sinPrecio ? (
+          <a
+            href={waLink(mensajePrecio)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex w-full items-center justify-center gap-2 border border-ink/25 py-3 text-[10px] tracking-[0.2em] text-ink uppercase transition-colors hover:border-ink"
+          >
+            <MessageCircle className="size-3.5" strokeWidth={1.7} />
+            Preguntar el precio por WhatsApp
+          </a>
+        ) : null}
+
+        {/* Aviso por talla: solo habla de la talla elegida, no de la más baja */}
+        {sizeSlug && selectedSizeInStock && stockTalla <= (color?.lowStockThreshold ?? 3) ? (
+          <p className="mt-3 text-[11px] text-copper">
+            {stockTalla === 1
+              ? `Queda 1 unidad en talla ${sizeSlug.toUpperCase()}`
+              : `Quedan ${stockTalla} unidades en talla ${sizeSlug.toUpperCase()}`}
+          </p>
+        ) : null}
 
         {/* Detalle */}
         <dl className="mt-10 space-y-4 border-t border-ink/10 pt-8">
