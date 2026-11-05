@@ -55,6 +55,7 @@ export function ProductEditForm({
     producto.compareAtCop ? String(producto.compareAtCop) : '',
   )
   const [etiquetas, setEtiquetas] = useState(producto.tags.join(', '))
+  const [descuento, setDescuento] = useState('')
   const [destacado, setDestacado] = useState(producto.featured)
   const [estado, setEstado] = useState(producto.status)
   const [stocks, setStocks] = useState<Record<string, string>>(
@@ -120,6 +121,33 @@ export function ProductEditForm({
   }
 
   const precioNumero = Number.parseInt(precio || '0', 10)
+
+  /** Rebaja real que se muestra hoy en la tienda. */
+  const precioLista = Number.parseInt(precioComparacion || '0', 10)
+  const precioActual = Number.parseInt(precio || '0', 10)
+  const rebajaActual =
+    precioLista > 0 && precioActual > 0 && precioLista > precioActual
+      ? Math.round(((precioLista - precioActual) / precioLista) * 100)
+      : 0
+
+  /**
+   * Aplica un descuento: el «precio antes» es la lista y el porcentaje rebaja
+   * el precio final. Si no hay lista, se usa el precio actual como referencia.
+   */
+  function aplicarDescuento(porcentaje: number) {
+    const lista = Number.parseInt(precioComparacion || '0', 10)
+    const actual = Number.parseInt(precio || '0', 10)
+    if (lista <= 0 && actual <= 0) return
+
+    if (porcentaje <= 0) {
+      setPrecioComparacion('')
+      return
+    }
+
+    const base = lista > 0 ? lista : actual
+    if (lista <= 0) setPrecioComparacion(String(base))
+    setPrecio(String(Math.round(base * (1 - porcentaje / 100))))
+  }
 
   return (
     <form onSubmit={guardar} className="grid gap-10 lg:grid-cols-[1fr_360px] lg:gap-16">
@@ -219,11 +247,63 @@ export function ProductEditForm({
           </Field>
         </div>
 
-        {precioNumero > 0 ? (
-          <p className="text-[11px] text-stone">
-            Se mostrará como <span className="text-ink">$ {cop.format(precioNumero)}</span>
-          </p>
-        ) : null}
+        {/* Descuento: el gerente ajusta la rebaja de esta prenda */}
+        <Field label="Descuento">
+          <div className="flex flex-wrap gap-2">
+            {[0, 10, 15, 20, 30].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => {
+                  setDescuento(pct === 0 ? '' : String(pct))
+                  aplicarDescuento(pct)
+                }}
+                aria-pressed={rebajaActual === pct}
+                className={cn(
+                  'border px-3 py-2 text-[10px] tracking-[0.14em] uppercase transition-colors',
+                  rebajaActual === pct
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-ink/20 text-stone-dark hover:border-ink hover:text-ink',
+                )}
+              >
+                {pct === 0 ? 'Sin descuento' : `−${pct}%`}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={90}
+              value={descuento}
+              onChange={(e) => {
+                setDescuento(e.target.value)
+                const pct = Number.parseInt(e.target.value, 10)
+                if (Number.isFinite(pct)) aplicarDescuento(pct)
+              }}
+              placeholder="Otro"
+              aria-label="Porcentaje de descuento"
+              className="w-24 border border-ink/20 px-2.5 py-2 text-sm tabular-nums outline-none focus:border-ink"
+            />
+            <span className="text-[11px] text-stone">% de descuento</span>
+          </div>
+
+          {precioNumero > 0 ? (
+            <p className="mt-2 text-[11px] leading-relaxed text-stone">
+              Se mostrará como <span className="text-ink">$ {cop.format(precioNumero)}</span>
+              {rebajaActual > 0 ? (
+                <>
+                  {' '}
+                  · antes <span className="text-stone line-through">$ {cop.format(precioLista)}</span>{' '}
+                  · <span className="text-copper">−{rebajaActual}%</span>
+                </>
+              ) : (
+                ' · sin rebaja'
+              )}
+            </p>
+          ) : null}
+        </Field>
 
         <Field label="Tejido / composición">
           <input
@@ -362,10 +442,13 @@ export function ProductEditForm({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // Un <label> que envuelve varios controles (botones, selects) rompe el nombre
+  // accesible del primero. Por eso el texto va como rótulo visual y el foco se
+  // resuelve con el propio control.
   return (
-    <label className="block">
+    <div className="block">
       <span className="text-[10px] tracking-[0.22em] text-stone uppercase">{label}</span>
       <div className="mt-2">{children}</div>
-    </label>
+    </div>
   )
 }

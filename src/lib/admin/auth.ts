@@ -15,27 +15,57 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 export const ADMIN_COOKIE = 'chillout_admin'
 const MAX_AGE_SECONDS = 60 * 60 * 8
 
-function secret(): string {
-  return process.env.ADMIN_SECRET ?? 'dev-secret-cambiar-en-produccion'
+/** Valor de ejemplo que nunca debe usarse para firmar sesiones reales. */
+const SECRETO_INSEGURO = 'dev-secret-cambiar-en-produccion'
+const LARGO_MINIMO_SECRETO = 32
+
+/**
+ * Secreto de firma.
+ *
+ * En producción, si falta o es débil, devolvemos null y la sesión queda cerrada
+ * (nadie entra y nadie valida). Es preferible un panel inaccesible a un panel
+ * abierto con una firma que cualquiera puede reproducir.
+ */
+function secret(): string | null {
+  const valor = process.env.ADMIN_SECRET?.trim()
+
+  if (!valor || valor.length < LARGO_MINIMO_SECRETO || valor === SECRETO_INSEGURO) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[admin/auth] ADMIN_SECRET ausente o débil: el panel queda cerrado. Define un secreto de al menos 32 caracteres.',
+      )
+      return null
+    }
+    return SECRETO_INSEGURO
+  }
+
+  return valor
 }
 
 export function adminPassword(): string | null {
-  return process.env.ADMIN_PASSWORD ?? null
+  const valor = process.env.ADMIN_PASSWORD?.trim()
+  return valor && valor.length >= 8 ? valor : null
 }
 
-export function createAdminToken(): string {
+export function createAdminToken(): string | null {
+  const clave = secret()
+  if (!clave) return null
+
   const issuedAt = Date.now().toString(36)
-  const signature = createHmac('sha256', secret()).update(issuedAt).digest('base64url')
+  const signature = createHmac('sha256', clave).update(issuedAt).digest('base64url')
   return `${issuedAt}.${signature}`
 }
 
 export function verifyAdminToken(token: string | undefined | null): boolean {
   if (!token) return false
 
+  const clave = secret()
+  if (!clave) return false
+
   const [issuedAt, signature] = token.split('.')
   if (!issuedAt || !signature) return false
 
-  const expected = createHmac('sha256', secret()).update(issuedAt).digest('base64url')
+  const expected = createHmac('sha256', clave).update(issuedAt).digest('base64url')
 
   const a = Buffer.from(signature)
   const b = Buffer.from(expected)

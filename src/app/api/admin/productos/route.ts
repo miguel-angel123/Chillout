@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { getDb, schema } from '@/db/client'
-import { slugify } from '@/lib/3d/pipeline'
+import { slugify } from '@/lib/slug'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 
 export const runtime = 'nodejs'
@@ -19,16 +19,16 @@ const MEDIA_PRODUCTS = join(process.cwd(), 'public', 'media', 'products')
 const MEDIA_MODELS = join(process.cwd(), 'public', 'media', 'models')
 
 /**
- * Alta de producto desde el panel (módulo de administración).
+ * Alta de producto desde el panel (mÃ³dulo de administraciÃ³n).
  *
- * A diferencia del 3D Studio —que construye el modelo a partir de las fotos—
- * esta ruta publica una prenda ya modelada: datos, imágenes y, si el gerente
+ * A diferencia del 3D Studio â€”que construye el modelo a partir de las fotosâ€”
+ * esta ruta publica una prenda ya modelada: datos, imÃ¡genes y, si el gerente
  * la tiene, el GLB que viene de fuera (Meshy, Marvelous, un modelador).
  */
 export async function POST(request: Request) {
   const token = request.headers.get('cookie')?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`))?.[1]
   if (!verifyAdminToken(token)) {
-    return NextResponse.json({ error: 'Sesión inválida. Vuelve a entrar.' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida. Vuelve a entrar.' }, { status: 401 })
   }
 
   let form: FormData
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No hay tallas en la base de datos' }, { status: 500 })
   }
 
-  // Slug único
+  // Slug Ãºnico
   const base = slugify(nombre) || `prenda-${Date.now()}`
   let slug = base
   for (let intento = 2; intento < 50; intento += 1) {
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
     slug = `${base}-${intento}`
   }
 
-  // ── Guardar imágenes normalizadas ───────────────────────
+  // â”€â”€ Guardar imÃ¡genes normalizadas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   await mkdir(MEDIA_PRODUCTS, { recursive: true })
   const guardadas: { url: string; kind: 'front' | 'back' | 'editorial'; alt: string }[] = []
 
@@ -174,12 +174,12 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     return NextResponse.json(
-      { error: `No se pudieron procesar las imágenes: ${(error as Error).message}` },
+      { error: `No se pudieron procesar las imÃ¡genes: ${(error as Error).message}` },
       { status: 500 },
     )
   }
 
-  // ── Guardar GLB si viene ────────────────────────────────
+  // â”€â”€ Guardar GLB si viene â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let glbUrl: string | null = null
   let glbBytes: number | null = null
 
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     glbBytes = buffer.length
   }
 
-  // ── Persistencia ────────────────────────────────────────
+  // â”€â”€ Persistencia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let creado: string | null = null
 
   try {
@@ -217,7 +217,7 @@ export async function POST(request: Request) {
     if (!producto) throw new Error('No se pudo crear el producto')
     creado = producto.id
 
-    // Una variante por color × talla, con el stock de ESA talla.
+    // Una variante por color Ã— talla, con el stock de ESA talla.
     for (const colorElegido of coloresElegidos) {
       for (const talla of tallas) {
         const stockTalla = stocks ? (stocks[talla.slug] ?? 0) : stockGlobal
@@ -232,7 +232,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Las fotos se asignan al primer color; los demás heredan esa imagen hasta
+    // Las fotos se asignan al primer color; los demÃ¡s heredan esa imagen hasta
     // que el gerente suba las suyas.
     for (const [indice, media] of guardadas.entries()) {
       await db.insert(schema.productMedia).values({
@@ -283,7 +283,7 @@ export async function POST(request: Request) {
       }
     }
     return NextResponse.json(
-      { error: `Se guardaron los archivos pero falló el registro: ${(error as Error).message}` },
+      { error: `Se guardaron los archivos pero fallÃ³ el registro: ${(error as Error).message}` },
       { status: 500 },
     )
   }
@@ -292,3 +292,4 @@ export async function POST(request: Request) {
 export async function GET() {
   return NextResponse.json({ error: 'Usa POST para crear un producto' }, { status: 405 })
 }
+

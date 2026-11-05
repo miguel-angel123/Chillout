@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
 import { getDb, schema } from '@/db/client'
-import { slugify } from '@/lib/3d/pipeline'
+import { slugify } from '@/lib/slug'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 
 export const runtime = 'nodejs'
@@ -25,7 +25,7 @@ function refrescar() {
 /** Crea un drop. */
 export async function POST(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   let form: FormData
@@ -39,13 +39,13 @@ export async function POST(request: Request) {
 
   const title = texto('title')
   if (title.length < 2) {
-    return NextResponse.json({ error: 'El título es obligatorio' }, { status: 400 })
+    return NextResponse.json({ error: 'El tÃ­tulo es obligatorio' }, { status: 400 })
   }
 
   const lanzamiento = texto('launchAt')
   const fecha = new Date(lanzamiento)
   if (!lanzamiento || Number.isNaN(fecha.getTime())) {
-    return NextResponse.json({ error: 'La fecha de apertura no es válida' }, { status: 400 })
+    return NextResponse.json({ error: 'La fecha de apertura no es vÃ¡lida' }, { status: 400 })
   }
 
   let productSlugs: string[] = []
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   const db = getDb()
 
-  // Slug único
+  // Slug Ãºnico
   const base = slugify(title) || `drop-${Date.now()}`
   let slug = base
   for (let intento = 2; intento < 50; intento += 1) {
@@ -127,10 +127,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** Actualiza campos sueltos de un drop (fecha, estado, piezas…). */
+/** Actualiza campos sueltos de un drop (fecha, estado, piezasâ€¦). */
 export async function PATCH(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   let cuerpo: {
@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
   try {
     cuerpo = (await request.json()) as typeof cuerpo
   } catch {
-    return NextResponse.json({ error: 'Petición inválida' }, { status: 400 })
+    return NextResponse.json({ error: 'PeticiÃ³n invÃ¡lida' }, { status: 400 })
   }
 
   const slug = typeof cuerpo.slug === 'string' ? cuerpo.slug.trim() : ''
@@ -165,7 +165,7 @@ export async function PATCH(request: Request) {
   if (cuerpo.launchAt !== undefined) {
     const fecha = new Date(String(cuerpo.launchAt))
     if (Number.isNaN(fecha.getTime())) {
-      return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 })
+      return NextResponse.json({ error: 'Fecha invÃ¡lida' }, { status: 400 })
     }
     cambios.launchAt = fecha
   }
@@ -195,7 +195,7 @@ export async function PATCH(request: Request) {
 /** Elimina un drop por slug. */
 export async function DELETE(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   const slug = (new URL(request.url).searchParams.get('slug') ?? '').trim()
@@ -214,3 +214,4 @@ export async function DELETE(request: Request) {
   refrescar()
   return NextResponse.json({ ok: true, slug })
 }
+

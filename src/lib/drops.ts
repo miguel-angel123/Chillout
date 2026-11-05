@@ -24,7 +24,7 @@ export type Drop = {
   unidadesPorReferencia: number
 }
 
-const IMAGEN_POR_DEFECTO = '/media/products/hoodie-acanalado-carbon.jpg'
+const IMAGEN_POR_DEFECTO = '/media/products/hoodie-rib-orange-01.jpg'
 
 export const DROPS_SEMILLA: Drop[] = [
   {
@@ -35,7 +35,7 @@ export const DROPS_SEMILLA: Drop[] = [
       'Cinco piezas en punto acanalado teñidas en carbón profundo. Serie corta, sin reposición: cuando se agota, se cierra.',
     lanzamiento: '2026-11-21T10:00:00-05:00',
     imagen: IMAGEN_POR_DEFECTO,
-    productSlugs: ['hoodie-acanalado-carbon', 'quarterzip-stripe'],
+    productSlugs: ['hoodie-rib', 'quarterzip-stripe'],
     unidadesPorReferencia: 6,
   },
 ]

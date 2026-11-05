@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { getDb, schema } from '@/db/client'
-import { slugify } from '@/lib/3d/pipeline'
+import { slugify } from '@/lib/slug'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 
 export const runtime = 'nodejs'
@@ -25,7 +25,7 @@ function leerPiezas(valor: unknown): string[] {
 /** Crea un conjunto. */
 export async function POST(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   let cuerpo: {
@@ -39,12 +39,12 @@ export async function POST(request: Request) {
   try {
     cuerpo = (await request.json()) as typeof cuerpo
   } catch {
-    return NextResponse.json({ error: 'Petición inválida' }, { status: 400 })
+    return NextResponse.json({ error: 'PeticiÃ³n invÃ¡lida' }, { status: 400 })
   }
 
   const title = typeof cuerpo.title === 'string' ? cuerpo.title.trim() : ''
   if (title.length < 2) {
-    return NextResponse.json({ error: 'El título es obligatorio' }, { status: 400 })
+    return NextResponse.json({ error: 'El tÃ­tulo es obligatorio' }, { status: 400 })
   }
 
   const productSlugs = leerPiezas(cuerpo.productSlugs)
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
 /** Actualiza un conjunto. */
 export async function PATCH(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   let cuerpo: {
@@ -109,7 +109,7 @@ export async function PATCH(request: Request) {
   try {
     cuerpo = (await request.json()) as typeof cuerpo
   } catch {
-    return NextResponse.json({ error: 'Petición inválida' }, { status: 400 })
+    return NextResponse.json({ error: 'PeticiÃ³n invÃ¡lida' }, { status: 400 })
   }
 
   const slug = typeof cuerpo.slug === 'string' ? cuerpo.slug.trim() : ''
@@ -157,7 +157,7 @@ export async function PATCH(request: Request) {
 /** Elimina un conjunto por slug. */
 export async function DELETE(request: Request) {
   if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
   }
 
   const slug = (new URL(request.url).searchParams.get('slug') ?? '').trim()
@@ -176,3 +176,4 @@ export async function DELETE(request: Request) {
   refrescar()
   return NextResponse.json({ ok: true, slug })
 }
+

@@ -521,10 +521,12 @@ export function ProductForm({ colors, sizes }: { colors: ColorOption[]; sizes: S
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // Rótulo visual, no <label>: algunos campos agrupan varios controles y un
+  // <label> contenedor les robaría el nombre accesible.
   return (
-    <label className="block">
+    <div className="block">
       <span className="text-[10px] tracking-[0.22em] text-stone uppercase">{label}</span>
       <div className="mt-2">{children}</div>
-    </label>
+    </div>
   )
 }
