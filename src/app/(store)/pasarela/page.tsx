@@ -14,5 +14,11 @@ export const dynamic = 'force-dynamic'
 export default async function RunwayPage() {
   const products = await getAllProducts()
 
-  return <Runway products={products} />
+  return (
+    <>
+      {/* Título accesible: la pasarela es visual y no lleva encabezado propio. */}
+      <h1 className="sr-only">Pasarela digital</h1>
+      <Runway products={products} />
+    </>
+  )
 }

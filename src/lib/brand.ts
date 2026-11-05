@@ -7,6 +7,8 @@ export const SITE = {
   locale: 'es-CO',
   currency: 'COP',
   country: 'Colombia',
+  /** Dominio público: se usa en el sitemap y en las URL canónicas. */
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://chillout.co',
   whatsapp: process.env.WHATSAPP_NUMBER ?? '573000000000',
   supportEmail: 'hola@chillout.co',
 } as const

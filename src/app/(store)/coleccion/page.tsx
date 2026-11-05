@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     'Hoodies acanalados y suéteres cuello polo tejidos en Colombia. Explora la colección completa de CHILLOUT.',
 }
 
+// El catálogo cambia desde el panel: la cuadrícula no puede quedar congelada.
+export const dynamic = 'force-dynamic'
+
 type SearchParams = Promise<{ q?: string; tag?: string; view?: string }>
 
 export default async function CollectionPage({ searchParams }: { searchParams: SearchParams }) {

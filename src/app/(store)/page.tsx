@@ -6,6 +6,11 @@ import { HeroParallax } from '@/components/site/hero-parallax'
 import { Reveal } from '@/components/site/reveal'
 import { getFeaturedProducts } from '@/lib/catalog'
 
+// La portada se arma con el catálogo real: si el gerente publica, destaca o
+// retira una prenda, el cambio debe verse de inmediato. Estática, la portada
+// podía seguir sirviendo un producto que ya no existía.
+export const dynamic = 'force-dynamic'
+
 const VALUE_PROPS = [
   {
     icon: Box,

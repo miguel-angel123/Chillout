@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: `%s · ${SITE.name}`,
   },
   description: SITE.description,
-  metadataBase: new URL('https://chillout.co'),
+  metadataBase: new URL(SITE.url),
   openGraph: {
     type: 'website',
     locale: 'es_CO',
