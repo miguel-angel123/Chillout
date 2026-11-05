@@ -286,6 +286,23 @@ export const orders = pgTable(
   ],
 )
 
+/** Conjuntos: combinaciones curadas de prendas que se venden juntas. */
+export const sets = pgTable(
+  'sets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull(),
+    eyebrow: text('eyebrow').notNull().default('Conjunto'),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    /** Piezas que componen el conjunto. */
+    productSlugs: text('product_slugs').array().notNull(),
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('sets_slug_key').on(t.slug)],
+)
+
 /** Drops: cápsulas limitadas con fecha de apertura. */
 export const drops = pgTable(
   'drops',

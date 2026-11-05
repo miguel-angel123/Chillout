@@ -1,7 +1,16 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { Box, CalendarClock, LayoutDashboard, LogOut, Package, Receipt, Ticket } from 'lucide-react'
+import {
+  Box,
+  CalendarClock,
+  LayoutDashboard,
+  Layers,
+  LogOut,
+  Package,
+  Receipt,
+  Ticket,
+} from 'lucide-react'
 import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
 
 export const metadata = { title: 'Panel CHILLOUT', robots: { index: false, follow: false } }
@@ -49,6 +58,13 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             >
               <CalendarClock className="size-4" strokeWidth={1.5} />
               Drops
+            </Link>
+            <Link
+              href="/admin/conjuntos"
+              className="inline-flex items-center gap-2 text-[11px] tracking-[0.16em] text-paper/70 uppercase hover:text-paper"
+            >
+              <Layers className="size-4" strokeWidth={1.5} />
+              Conjuntos
             </Link>
             <Link
               href="/admin/cupones"
