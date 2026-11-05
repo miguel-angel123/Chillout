@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LayoutGrid, Rows3, Search, X } from 'lucide-react'
 import { ProductCard } from '@/components/product/product-card'
+import { Reveal } from '@/components/site/reveal'
 import type { ProductSummaryVM } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
@@ -213,7 +214,9 @@ export function CatalogView({
           )}
         >
           {filtered.map((product, index) => (
-            <ProductCard key={product.slug} product={product} priority={index < 4} />
+            <Reveal key={product.slug} delay={(index % 4) * 70}>
+              <ProductCard product={product} priority={index < 4} />
+            </Reveal>
           ))}
         </div>
       )}

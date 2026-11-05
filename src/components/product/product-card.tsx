@@ -17,10 +17,15 @@ export function ProductCard({
   const primary = product.colors[0]
   const lowStock = primary?.lowStockSize
 
+  // Imagen de hover: la foto dedicada si existe; si no, el segundo color.
+  // Así el cambio al pasar el ratón funciona en todo el catálogo, no solo en
+  // los productos que traen una foto de hover.
+  const hoverSource = primary?.hoverImage ?? product.colors[1]?.image ?? null
+
   return (
     <article className={cn('group relative', className)}>
       <Link href={`/producto/${product.slug}`} className="block focus-visible:outline-offset-4">
-        <div className="relative aspect-[3/4] overflow-hidden bg-paper-dim">
+        <div className="card-media relative aspect-[3/4] overflow-hidden bg-paper-dim">
           {primary ? (
             <>
               <Image
@@ -30,17 +35,17 @@ export function ProductCard({
                 priority={priority}
                 sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
                 className={cn(
-                  'object-cover transition-all duration-700 ease-[var(--ease-out-expo)]',
-                  primary.hoverImage && 'group-hover:scale-[1.03] group-hover:opacity-0',
+                  'object-cover',
+                  hoverSource && 'group-hover:scale-[1.05] group-hover:opacity-0',
                 )}
               />
-              {primary.hoverImage ? (
+              {hoverSource ? (
                 <Image
-                  src={primary.hoverImage.url}
-                  alt={primary.hoverImage.alt}
+                  src={hoverSource.url}
+                  alt={hoverSource.alt}
                   fill
                   sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw"
-                  className="object-cover opacity-0 transition-all duration-700 ease-[var(--ease-out-expo)] group-hover:scale-[1.03] group-hover:opacity-100"
+                  className="scale-[1.06] object-cover opacity-0 group-hover:scale-100 group-hover:opacity-100"
                 />
               ) : null}
             </>
@@ -62,7 +67,7 @@ export function ProductCard({
 
         <div className="mt-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate font-sans text-[13px] font-medium tracking-wide text-ink">
+            <h3 className="card-title inline-block truncate font-sans text-[13px] font-medium tracking-wide text-ink">
               {product.name}
             </h3>
             <p className="mt-0.5 truncate text-[11px] tracking-wide text-stone-dark">

@@ -10,6 +10,10 @@ import { Header } from '@/components/site/header'
 export default function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/* Sin JavaScript no hay revelado al hacer scroll: se muestra todo. */}
+      <noscript>
+        <style>{`.scroll-reveal{opacity:1 !important;transform:none !important}`}</style>
+      </noscript>
       <a
         href="#contenido"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:bg-ink focus:px-4 focus:py-2 focus:text-paper"

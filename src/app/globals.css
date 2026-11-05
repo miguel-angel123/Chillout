@@ -167,6 +167,77 @@
     animation: reveal-up var(--duration-slow) var(--ease-out-expo) both;
   }
 
+  /* Revelado al hacer scroll (módulo 6).
+     El bloque entra cuando cruza el viewport. El retardo se controla con
+     --reveal-delay para escalonar las tarjetas de una misma fila. */
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition:
+      opacity var(--duration-slow) var(--ease-out-expo),
+      transform var(--duration-slow) var(--ease-out-expo);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  .scroll-reveal[data-visible='true'] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Hover de producto (módulo 3): la imagen se acerca y el nombre se subraya
+     con el cobre de la marca. Sin sombras ni colores ajenos a la paleta. */
+  .card-media img {
+    transition:
+      transform 900ms var(--ease-out-expo),
+      opacity 700ms var(--ease-out-expo);
+  }
+
+  .card-title {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 1px;
+    transition: background-size 560ms var(--ease-out-expo);
+  }
+
+  .group:hover .card-title,
+  .group:focus-within .card-title {
+    background-size: 100% 1px;
+  }
+
+  /* Haz de luz que recorre la portada al entrar (módulo 5). */
+  .hero-sheen::after {
+    content: '';
+    position: absolute;
+    inset: -20% -40%;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 34%,
+      color-mix(in oklab, #fff 14%, transparent) 46%,
+      color-mix(in oklab, #fff 30%, transparent) 50%,
+      color-mix(in oklab, #fff 14%, transparent) 54%,
+      transparent 66%
+    );
+    animation: hero-sweep 2400ms var(--ease-out-expo) 700ms both;
+  }
+
+  @keyframes hero-sweep {
+    from {
+      transform: translateX(-70%);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    to {
+      transform: translateX(70%);
+      opacity: 0;
+    }
+  }
+
   .text-balance {
     text-wrap: balance;
   }

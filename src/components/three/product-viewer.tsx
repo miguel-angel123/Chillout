@@ -32,9 +32,10 @@ const LIGHTS = (
   <>
     <directionalLight position={[2.6, 2.4, 3.4]} intensity={2.4} color="#fff6ec" />
     <directionalLight position={[-3.2, 0.6, -2.2]} intensity={1.1} color="#cfd8e6" />
-    {/* Contraluz: en prendas negras el borde iluminado es lo que define la
-        silueta; sin él el modelo se ve como una mancha. */}
-    <directionalLight position={[-1.6, 1.8, -3.4]} intensity={3.2} color="#ffffff" />
+    {/* Contraluz: en prendas negras el borde iluminado define la silueta.
+        Se mantiene moderado para no quemar el interior de la prenda cuando se
+        mira por la abertura del bajo o del puño. */}
+    <directionalLight position={[-1.6, 1.8, -3.4]} intensity={1.9} color="#ffffff" />
     <directionalLight position={[0, -1.6, 1.4]} intensity={0.45} color="#ffffff" />
     <ambientLight intensity={0.9} />
   </>

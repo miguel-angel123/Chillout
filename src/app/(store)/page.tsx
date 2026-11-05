@@ -2,6 +2,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Box, Ruler, Truck } from 'lucide-react'
 import { ProductCard } from '@/components/product/product-card'
+import { HeroParallax } from '@/components/site/hero-parallax'
+import { Reveal } from '@/components/site/reveal'
 import { getFeaturedProducts } from '@/lib/catalog'
 
 const VALUE_PROPS = [
@@ -28,15 +30,17 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Portada ─────────────────────────────────────────── */}
-      <section className="relative isolate flex min-h-[86svh] items-end overflow-hidden bg-ink">
-        <Image
-          src="/media/products/quarterzip-stripe-black-01.jpg"
-          alt="Modelo con suéter polo de franjas negro en un interior de madera"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-[50%_28%] opacity-90"
-        />
+      <section className="hero-sheen relative isolate flex min-h-[86svh] items-end overflow-hidden bg-ink">
+        <HeroParallax>
+          <Image
+            src="/media/products/quarterzip-stripe-black-01.jpg"
+            alt="Modelo con suéter polo de franjas negro en un interior de madera"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-[50%_28%] opacity-90"
+          />
+        </HeroParallax>
         <div
           className="absolute inset-0 bg-gradient-to-t from-ink via-ink/45 to-ink/20"
           aria-hidden
@@ -109,7 +113,9 @@ export default async function HomePage() {
 
         <div className="mt-10 grid gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((product, i) => (
-            <ProductCard key={product.slug} product={product} priority={i < 3} />
+            <Reveal key={product.slug} delay={i * 90}>
+              <ProductCard product={product} priority={i < 3} />
+            </Reveal>
           ))}
         </div>
       </section>
@@ -117,16 +123,18 @@ export default async function HomePage() {
       {/* ── Editorial: confección ───────────────────────────── */}
       <section className="bg-ink text-paper">
         <div className="mx-auto grid max-w-[1600px] items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:py-24">
-          <div className="relative aspect-[4/5] overflow-hidden bg-ink-700">
-            <Image
-              src="/media/products/hoodie-rib-orange-01.jpg"
-              alt="Detalle del punto acanalado del hoodie naranja quemado"
-              fill
-              sizes="(max-width: 1024px) 92vw, 46vw"
-              className="object-cover"
-            />
-          </div>
-          <div>
+          <Reveal>
+            <div className="relative aspect-[4/5] overflow-hidden bg-ink-700">
+              <Image
+                src="/media/products/hoodie-rib-orange-01.jpg"
+                alt="Detalle del punto acanalado del hoodie naranja quemado"
+                fill
+                sizes="(max-width: 1024px) 92vw, 46vw"
+                className="object-cover"
+              />
+            </div>
+          </Reveal>
+          <Reveal delay={140}>
             <p className="text-[10px] tracking-[0.32em] text-copper-bright uppercase">Confección</p>
             <h2 className="mt-4 font-display text-[clamp(1.75rem,4vw,3.25rem)] leading-[1.05]">
               Gramaje que se
@@ -152,7 +160,7 @@ export default async function HomePage() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
         </div>
       </section>
 
