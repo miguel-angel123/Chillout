@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, gte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, schema } from '@/db/client'
 import { registrarUsoCupon, validarCupon } from '@/lib/cupones'
@@ -172,9 +172,60 @@ export async function POST(request: Request) {
   const total = Math.max(0, subtotal - descuento) + shipping
 
   const token = crypto.randomUUID()
-  let code = makeCode()
+  const code = makeCode()
+
+  /**
+   * Reservas de stock ya aplicadas.
+   *
+   * El descuento es atómico y condicional: si entre la comprobación y el
+   * UPDATE otra persona se llevó la última unidad, la fila no se actualiza y la
+   * compra se aborta. Sin esto, dos checkouts simultáneos podían sobrevender.
+   * Si algo falla después, se devuelve lo reservado.
+   */
+  const reservadas: { id: string; qty: number }[] = []
+
+  async function liberarReservas(): Promise<void> {
+    for (const reserva of reservadas) {
+      try {
+        await db
+          .update(schema.productVariants)
+          .set({ stock: sql`${schema.productVariants.stock} + ${reserva.qty}` })
+          .where(eq(schema.productVariants.id, reserva.id))
+      } catch (error) {
+        console.error('[orders] no se pudo devolver stock:', (error as Error).message)
+      }
+    }
+    reservadas.length = 0
+  }
 
   try {
+    // 1. Reservar el stock antes de crear nada.
+    for (const line of resolved) {
+      const descontadas = await db
+        .update(schema.productVariants)
+        .set({ stock: sql`${schema.productVariants.stock} - ${line.qty}` })
+        .where(
+          and(
+            eq(schema.productVariants.id, line.variantId),
+            gte(schema.productVariants.stock, line.qty),
+          ),
+        )
+        .returning({ id: schema.productVariants.id })
+
+      if (descontadas.length === 0) {
+        await liberarReservas()
+        return NextResponse.json(
+          {
+            error: `Se agotó ${line.name} en talla ${line.size} mientras comprabas. Ajusta el carrito.`,
+          },
+          { status: 409 },
+        )
+      }
+
+      reservadas.push({ id: line.variantId, qty: line.qty })
+    }
+
+    // 2. Registrar el pedido.
     const [order] = await db
       .insert(schema.orders)
       .values({
@@ -209,12 +260,6 @@ export async function POST(request: Request) {
         unitPriceCop: line.unitPriceCop,
         lineTotalCop: line.unitPriceCop * line.qty,
       })
-
-      // El stock se descuenta aquí; el checkout no puede saltarse el inventario.
-      await db
-        .update(schema.productVariants)
-        .set({ stock: sql`GREATEST(0, ${schema.productVariants.stock} - ${line.qty})` })
-        .where(eq(schema.productVariants.id, line.variantId))
     }
 
     await db.insert(schema.orderEvents).values({
@@ -258,6 +303,8 @@ export async function POST(request: Request) {
       }
     }
   } catch (error) {
+    // Si el pedido no llegó a registrarse, se devuelve el stock reservado.
+    await liberarReservas()
     console.error('[orders] no se pudo registrar:', error)
     return NextResponse.json(
       { error: `No se pudo registrar el pedido: ${(error as Error).message}` },
