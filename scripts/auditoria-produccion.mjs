@@ -16,7 +16,6 @@ const PUBLICAS = [
   '/producto/hoodie-rib',
   '/producto/quarterzip-solid',
   '/producto/quarterzip-stripe',
-  '/producto/hoodie-acanalado-carbon',
   '/lookbook',
   '/pasarela',
   '/drops',
@@ -34,7 +33,6 @@ const ADMIN = [
   '/admin/productos',
   '/admin/productos/nuevo',
   '/admin/productos/hoodie-rib',
-  '/admin/3d-studio',
   '/admin/pedidos',
   '/admin/cupones',
   '/admin/drops',
@@ -180,7 +178,8 @@ const tallaBoton = page.locator('button[aria-pressed]', { hasText: /^S$/ }).firs
 if (await tallaBoton.count()) await tallaBoton.click()
 else anotar('COMPRA', 'no encuentro el selector de talla S')
 
-const añadir = page.getByRole('button', { name: /añadir|agregar al carrito/i }).first()
+// Ojo: «Añadir una unidad» es el contador; el que compra es «Añadir al carrito».
+const añadir = page.getByRole('button', { name: /añadir al carrito/i }).first()
 if (await añadir.count()) {
   await añadir.click()
   await page.waitForTimeout(1400)

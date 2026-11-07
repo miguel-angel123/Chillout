@@ -11,11 +11,13 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:setup": "node scripts/db-setup.mjs",
+    "db:migrate": "node scripts/db-migracion-acceso.mjs && node scripts/db-migracion-cupones.mjs && node scripts/db-migracion-drops.mjs && node scripts/db-migracion-conjuntos.mjs",
+    "db:admin": "node scripts/db-admin-password.mjs",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts",
-    "assets": "tsx scripts/prepare-assets.ts"
+    "audit": "node scripts/auditoria-produccion.mjs",
+    "assets": "node scripts/prepare-assets.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.14",
@@ -23,14 +25,10 @@
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "bcryptjs": "^3.0.3",
-    "better-auth": "^1.7.15",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.66.0",
-    "motion": "^14.9.0",
     "next": "16.4.3",
-    "nuqs": "^2.10.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "sharp": "^0.35.5",
@@ -45,11 +43,9 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.187.0",
-    "drizzle-kit": "^0.31.11",
     "playwright": "^1.64.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.0",
-    "vitest": "^5.0.5"
+    "typescript": "^5.9.0"
   }
 }

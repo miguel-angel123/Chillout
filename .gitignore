@@ -14,12 +14,6 @@ dist/
 # local tooling (portable git, caches)
 .tools/
 
-# pesos de modelos IA (se descargan solos la primera vez)
-.models/
-
-# motor 3D local: vive fuera del proyecto para no publicarse en GitHub
-CHILLOUT-MOTOR-3D/
-
 # local database (pglite)
 /.data/
 *.pglite

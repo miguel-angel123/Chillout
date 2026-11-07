@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
   // Paquetes con binarios nativos que no deben empaquetarse.
   serverExternalPackages: ['@electric-sql/pglite', 'sharp'],
   experimental: {
-    optimizePackageImports: ['lucide-react', 'motion'],
+    optimizePackageImports: ['lucide-react'],
   },
   async headers() {
     return [
