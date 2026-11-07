@@ -303,6 +303,75 @@ export const sets = pgTable(
   (t) => [unique('sets_slug_key').on(t.slug)],
 )
 
+/**
+ * Usuarios del panel.
+ *
+ * La contraseña se guarda SIEMPRE como hash bcrypt. El texto plano vive solo en
+ * `.env.local` como semilla (ADMIN_PASSWORD) para poder recrear el acceso; nunca
+ * se escribe en la base.
+ */
+export const adminUsers = pgTable(
+  'admin_users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    active: boolean('active').notNull().default(true),
+    /** Intentos fallidos seguidos; se reinicia al entrar bien. */
+    failedAttempts: integer('failed_attempts').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('admin_users_email_key').on(t.email)],
+)
+
+/**
+ * Sesiones del panel, en base de datos.
+ *
+ * La cookie lleva un token aleatorio; aquí se guarda su HASH (sha256). Una copia
+ * de la base no permite suplantar a nadie, y cada sesión se puede revocar al
+ * instante (cerrar sesión, cerrar en todos los dispositivos, caducidad).
+ */
+export const adminSessions = pgTable(
+  'admin_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('admin_sessions_token_key').on(t.tokenHash),
+    index('admin_sessions_user_idx').on(t.userId),
+  ],
+)
+
+/**
+ * Intentos de acceso, para el límite de fuerza bruta.
+ *
+ * Vive en la base (no en memoria) para que el bloqueo sobreviva a reinicios y
+ * se comparta entre instancias.
+ */
+export const loginAttempts = pgTable(
+  'login_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ip: text('ip').notNull(),
+    email: text('email'),
+    success: boolean('success').notNull().default(false),
+    attemptedAt: timestamp('attempted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('login_attempts_ip_idx').on(t.ip, t.attemptedAt)],
+)
+
 /** Drops: cápsulas limitadas con fecha de apertura. */
 export const drops = pgTable(
   'drops',

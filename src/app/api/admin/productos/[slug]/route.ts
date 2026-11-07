@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getDb, schema } from '@/db/client'
-import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
+import { exigirSesion } from '@/lib/admin/guard'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -19,10 +19,8 @@ const MAX_GLB = 60 * 1024 * 1024
  * reemplazar el modelo 3D sin crear otra prenda.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const token = request.headers.get('cookie')?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`))?.[1]
-  if (!verifyAdminToken(token)) {
-    return NextResponse.json({ error: 'Sesión inválida. Vuelve a entrar.' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   const { slug } = await params
 
@@ -145,10 +143,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sl
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const token = request.headers.get('cookie')?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`))?.[1]
-  if (!verifyAdminToken(token)) {
-    return NextResponse.json({ error: 'Sesión inválida. Vuelve a entrar.' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   const { slug } = await params
   const db = getDb()

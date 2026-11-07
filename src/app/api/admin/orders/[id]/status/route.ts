@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { getDb, schema } from '@/db/client'
-import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
+import { sesionActual } from '@/lib/admin/auth'
 import { ORDER_STATUS_LABELS, updateOrderStatus, type OrderStatus } from '@/lib/orders'
 import { orderStatusEmail, sendEmail } from '@/lib/notifications/email'
 
@@ -12,8 +11,8 @@ const VALID = new Set(Object.keys(ORDER_STATUS_LABELS))
 
 /** Cambia el estado de un pedido y vuelve a la bandeja (sin JavaScript). */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const store = await cookies()
-  if (!verifyAdminToken(store.get(ADMIN_COOKIE)?.value)) {
+  const sesion = await sesionActual()
+  if (!sesion) {
     return NextResponse.redirect(new URL('/admin/login', request.url), { status: 303 })
   }
 

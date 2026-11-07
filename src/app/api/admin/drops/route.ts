@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { eq } from 'drizzle-orm'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -6,16 +6,11 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import { getDb, schema } from '@/db/client'
 import { slugify } from '@/lib/slug'
-import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
+import { exigirSesion } from '@/lib/admin/guard'
 
 export const runtime = 'nodejs'
 
 const MEDIA_DROPS = join(process.cwd(), 'public', 'media', 'drops')
-
-function autorizado(request: Request): boolean {
-  const token = request.headers.get('cookie')?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`))?.[1]
-  return verifyAdminToken(token)
-}
 
 function refrescar() {
   revalidatePath('/drops')
@@ -24,9 +19,8 @@ function refrescar() {
 
 /** Crea un drop. */
 export async function POST(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   let form: FormData
   try {
@@ -39,13 +33,13 @@ export async function POST(request: Request) {
 
   const title = texto('title')
   if (title.length < 2) {
-    return NextResponse.json({ error: 'El tÃ­tulo es obligatorio' }, { status: 400 })
+    return NextResponse.json({ error: 'El título es obligatorio' }, { status: 400 })
   }
 
   const lanzamiento = texto('launchAt')
   const fecha = new Date(lanzamiento)
   if (!lanzamiento || Number.isNaN(fecha.getTime())) {
-    return NextResponse.json({ error: 'La fecha de apertura no es vÃ¡lida' }, { status: 400 })
+    return NextResponse.json({ error: 'La fecha de apertura no es válida' }, { status: 400 })
   }
 
   let productSlugs: string[] = []
@@ -60,7 +54,7 @@ export async function POST(request: Request) {
 
   const db = getDb()
 
-  // Slug Ãºnico
+  // Slug único
   const base = slugify(title) || `drop-${Date.now()}`
   let slug = base
   for (let intento = 2; intento < 50; intento += 1) {
@@ -127,11 +121,10 @@ export async function POST(request: Request) {
   }
 }
 
-/** Actualiza campos sueltos de un drop (fecha, estado, piezasâ€¦). */
+/** Actualiza campos sueltos de un drop (fecha, estado, piezas…). */
 export async function PATCH(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   let cuerpo: {
     slug?: unknown
@@ -146,7 +139,7 @@ export async function PATCH(request: Request) {
   try {
     cuerpo = (await request.json()) as typeof cuerpo
   } catch {
-    return NextResponse.json({ error: 'PeticiÃ³n invÃ¡lida' }, { status: 400 })
+    return NextResponse.json({ error: 'Petición inválida' }, { status: 400 })
   }
 
   const slug = typeof cuerpo.slug === 'string' ? cuerpo.slug.trim() : ''
@@ -165,7 +158,7 @@ export async function PATCH(request: Request) {
   if (cuerpo.launchAt !== undefined) {
     const fecha = new Date(String(cuerpo.launchAt))
     if (Number.isNaN(fecha.getTime())) {
-      return NextResponse.json({ error: 'Fecha invÃ¡lida' }, { status: 400 })
+      return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 })
     }
     cambios.launchAt = fecha
   }
@@ -194,9 +187,8 @@ export async function PATCH(request: Request) {
 
 /** Elimina un drop por slug. */
 export async function DELETE(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'SesiÃ³n invÃ¡lida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   const slug = (new URL(request.url).searchParams.get('slug') ?? '').trim()
   if (!slug) return NextResponse.json({ error: 'Falta el slug' }, { status: 400 })

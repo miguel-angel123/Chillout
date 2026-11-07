@@ -3,20 +3,14 @@ import { revalidatePath } from 'next/cache'
 import { desc, eq } from 'drizzle-orm'
 import { getDb, schema } from '@/db/client'
 import { normalizarCodigo } from '@/lib/cupones'
-import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
+import { exigirSesion } from '@/lib/admin/guard'
 
 export const runtime = 'nodejs'
 
-function autorizado(request: Request): boolean {
-  const token = request.headers.get('cookie')?.match(new RegExp(`${ADMIN_COOKIE}=([^;]+)`))?.[1]
-  return verifyAdminToken(token)
-}
-
 /** Crea un cupón. */
 export async function POST(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   let cuerpo: {
     code?: unknown
@@ -92,9 +86,8 @@ export async function POST(request: Request) {
 
 /** Activa o desactiva un cupón. */
 export async function PATCH(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   let cuerpo: { code?: unknown; active?: unknown }
   try {
@@ -124,9 +117,8 @@ export async function PATCH(request: Request) {
 
 /** Elimina un cupón por código. */
 export async function DELETE(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   const code = normalizarCodigo(new URL(request.url).searchParams.get('code') ?? '')
   if (!code) return NextResponse.json({ error: 'Falta el código' }, { status: 400 })
@@ -147,9 +139,8 @@ export async function DELETE(request: Request) {
 
 /** Lista de cupones (para refrescos puntuales). */
 export async function GET(request: Request) {
-  if (!autorizado(request)) {
-    return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
-  }
+  const guardia = await exigirSesion()
+  if (guardia) return guardia
 
   const db = getDb()
   const cupones = await db.select().from(schema.coupons).orderBy(desc(schema.coupons.createdAt))

@@ -1,72 +1,84 @@
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
-import { getDb, schema } from '@/db/client'
-import { ADMIN_COOKIE, ADMIN_COOKIE_OPTIONS, checkPassword, createAdminToken } from '@/lib/admin/auth'
 import {
-  claveCliente,
-  estaBloqueado,
-  limpiarIntentos,
-  registrarIntentoFallido,
-} from '@/lib/admin/rate-limit'
+  ADMIN_COOKIE,
+  ADMIN_COOKIE_OPTIONS,
+  adminEmail,
+  crearSesion,
+  estadoLimite,
+  ipCliente,
+  registrarIntento,
+  verificarCredenciales,
+} from '@/lib/admin/auth'
 
 export const runtime = 'nodejs'
 
+/**
+ * Acceso al panel.
+ *
+ * 1. Se mira el límite de intentos de esa IP (contado en la base).
+ * 2. Se compara la contraseña con el hash bcrypt del usuario.
+ * 3. Si entra, se crea una sesión en base y se entrega el token en cookie.
+ */
 export async function POST(request: Request) {
-  const cliente = claveCliente(request)
+  const ip = ipCliente(request)
 
-  // Antes de tocar la contraseña: ¿esta IP ya agotó sus intentos?
-  const estado = estaBloqueado(cliente)
-  if (estado.bloqueado) {
-    const minutos = Math.ceil(estado.esperarMs / 60_000)
-    return NextResponse.json(
-      { error: `Demasiados intentos. Prueba de nuevo en ${minutos} min.` },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil(estado.esperarMs / 1000)) } },
-    )
-  }
-
-  const body = (await request.json().catch(() => null)) as { password?: string } | null
-  const password = typeof body?.password === 'string' ? body.password.slice(0, 200) : ''
-
-  if (!checkPassword(password)) {
-    const resultado = registrarIntentoFallido(cliente)
-    if (!resultado.permitido) {
-      await new Promise((resolve) => setTimeout(resolve, 600))
+  try {
+    const limite = await estadoLimite(ip)
+    if (limite.bloqueado) {
+      const minutos = Math.max(1, Math.ceil(limite.esperarMs / 60_000))
       return NextResponse.json(
-        { error: 'Demasiados intentos fallidos. Espera unos minutos.' },
-        { status: 429 },
+        { error: `Demasiados intentos. Prueba de nuevo en ${minutos} min.` },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(limite.esperarMs / 1000)) },
+        },
       )
     }
-    return NextResponse.json(
-      { error: 'Contraseña incorrecta', restantes: resultado.restantes },
-      { status: 401 },
-    )
-  }
 
-  const token = createAdminToken()
-  if (!token) {
-    // Sin secreto válido no se emite sesión: el panel queda cerrado.
-    return NextResponse.json(
-      { error: 'El panel no está configurado (falta ADMIN_SECRET).' },
-      { status: 503 },
-    )
-  }
+    const body = (await request.json().catch(() => null)) as {
+      password?: unknown
+      email?: unknown
+    } | null
 
-  limpiarIntentos(cliente)
+    const password = typeof body?.password === 'string' ? body.password.slice(0, 200) : ''
+    const email = typeof body?.email === 'string' && body.email.trim() ? body.email : adminEmail()
 
-  const response = NextResponse.json({ ok: true })
-  response.cookies.set(ADMIN_COOKIE, token, ADMIN_COOKIE_OPTIONS)
+    const resultado = await verificarCredenciales(email, password)
 
-  // Verificación temprana de la base: si no responde, el admin debe saberlo ya.
-  try {
-    const db = getDb()
-    await db
-      .select({ id: schema.products.id })
-      .from(schema.products)
-      .where(eq(schema.products.status, 'active'))
-      .limit(1)
+    if (!resultado.ok) {
+      await registrarIntento(ip, email, false)
+
+      if (resultado.motivo === 'sin_configurar') {
+        return NextResponse.json(
+          { error: 'El panel no está configurado (falta ADMIN_PASSWORD).' },
+          { status: 503 },
+        )
+      }
+
+      if (resultado.motivo === 'bloqueado') {
+        const minutos = Math.max(1, Math.ceil((resultado.esperarMs ?? 0) / 60_000))
+        return NextResponse.json(
+          { error: `Demasiados intentos fallidos. Espera ${minutos} min.` },
+          { status: 429 },
+        )
+      }
+
+      const restantes = Math.max(0, 5 - (limite.usados + 1))
+      return NextResponse.json({ error: 'Contraseña incorrecta', restantes }, { status: 401 })
+    }
+
+    await registrarIntento(ip, email, true)
+
+    const { token } = await crearSesion(resultado.userId, {
+      ip,
+      userAgent: request.headers.get('user-agent') ?? undefined,
+    })
+
+    const respuesta = NextResponse.json({ ok: true })
+    respuesta.cookies.set(ADMIN_COOKIE, token, ADMIN_COOKIE_OPTIONS)
+    return respuesta
   } catch (error) {
-    console.warn('[admin/login] base de datos no disponible:', (error as Error).message)
+    console.error('[admin/login] fallo:', (error as Error).message)
+    return NextResponse.json({ error: 'No se pudo iniciar sesión' }, { status: 500 })
   }
-
-  return response
 }

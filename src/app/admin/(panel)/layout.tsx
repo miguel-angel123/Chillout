@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import {
   CalendarClock,
   LayoutDashboard,
@@ -10,13 +9,13 @@ import {
   Receipt,
   Ticket,
 } from 'lucide-react'
-import { ADMIN_COOKIE, verifyAdminToken } from '@/lib/admin/auth'
+import { sesionActual } from '@/lib/admin/auth'
 
 export const metadata = { title: 'Panel CHILLOUT', robots: { index: false, follow: false } }
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const store = await cookies()
-  if (!verifyAdminToken(store.get(ADMIN_COOKIE)?.value)) {
+  const sesion = await sesionActual()
+  if (!sesion) {
     redirect('/admin/login')
   }
 
